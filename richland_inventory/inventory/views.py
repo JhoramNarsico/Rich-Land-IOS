@@ -697,6 +697,9 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
             balance += (entry['debit'] - entry['credit'])
             entry['balance'] = balance
 
+        # 6. Sort by date descending (Latest first)
+        ledger.sort(key=lambda x: x['date'], reverse=True)
+
         # Pagination for Ledger
         ledger_paginator = Paginator(ledger, 20)
         ledger_page = self.request.GET.get('ledger_page')

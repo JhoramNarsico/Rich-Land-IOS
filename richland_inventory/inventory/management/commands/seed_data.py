@@ -43,6 +43,16 @@ class Command(BaseCommand):
             {'name': 'Manila Rubber Corp', 'contact': 'Maria Cruz', 'email': 'maria@mrc.ph', 'phone': '0918-555-0101'},
             {'name': 'Lubricants Express', 'contact': 'David Lee', 'email': 'sales@lubex.com', 'phone': '02-8888-1234'},
         ]
+
+        # Generate 100 additional suppliers
+        for i in range(1, 101):
+            suppliers_data.append({
+                'name': f'Supplier {i} - Auto Supply',
+                'contact': f'Agent {i}',
+                'email': f'supplier{i}@example.com',
+                'phone': f'09{random.randint(10, 99)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}'
+            })
+
         sup_objs = []
         for data in suppliers_data:
             sup, created = Supplier.objects.get_or_create(name=data['name'], defaults={
@@ -166,13 +176,51 @@ class Command(BaseCommand):
             notes=f"Received from Purchase Order PO #{po3.id}",
             timestamp=timezone.now() - timedelta(days=5)
         )
-        
         self.stdout.write("Created 3 Purchase Orders (Pending, Arrived, Received).")
+
+        # Create 100 additional Purchase Orders with variety
+        self.stdout.write("Creating 100 additional Purchase Orders...")
+        for i in range(100):
+            supplier = random.choice(sup_objs)
+            status = random.choice(['PENDING', 'COMPLETED', 'RECEIVED', 'CANCELED'])
+            order_date = timezone.now() - timedelta(days=random.randint(1, 730))
+
+            po = PurchaseOrder.objects.create(
+                supplier=supplier,
+                status=status
+            )
+            po.order_date = order_date
+            po.save()
+
+            num_items = random.randint(1, 5)
+            for _ in range(num_items):
+                product = random.choice(prod_objs)
+                quantity = random.randint(5, 50)
+                purchase_price = Decimal(str(product.price)) * Decimal(random.uniform(0.6, 0.8))
+
+                PurchaseOrderItem.objects.create(
+                    purchase_order=po,
+                    product=product,
+                    quantity=quantity,
+                    price=purchase_price.quantize(Decimal('0.01'))
+                )
+
+                if status == 'RECEIVED':
+                    product.quantity += quantity
+                    product.last_purchase_date = order_date
+                    product.save()
+                    st = StockTransaction.objects.create(
+                        product=product, transaction_type='IN', transaction_reason='PO',
+                        quantity=quantity, user=user, notes=f"Received from Purchase Order {po.order_id}"
+                    )
+                    st.timestamp = order_date
+                    st.save()
+        self.stdout.write("Created 100 additional Purchase Orders.")
 
         # 7. Generate POS History
         self.stdout.write("Generating POS transaction history...")
         end_date = timezone.now()
-        for _ in range(500):
+        for _ in range(600):
             random_days = random.randint(0, 730)
             txn_date = end_date - timedelta(days=random_days)
             
@@ -214,7 +262,7 @@ class Command(BaseCommand):
                     sale_record.save()
                 else:
                     sale_record.delete()
-        self.stdout.write("Generated 500 POS sales over 2 years.")
+        self.stdout.write("Generated 600 POS sales over 2 years.")
 
         # 8. Generate some payments for credit sales
         self.stdout.write("Generating customer payments for credit sales...")
