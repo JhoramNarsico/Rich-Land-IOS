@@ -331,6 +331,9 @@ class ExpenseListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
                     context['period_name'] = "Selected Period"
             else:
                 context['period_name'] = "All Time"
+        
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
                 
         return context
 
@@ -536,6 +539,8 @@ class CustomerListView(LoginRequiredMixin, ListView):
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         return context
 
     def get(self, request, *args, **kwargs):
@@ -704,6 +709,7 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         ledger_paginator = Paginator(ledger, 20)
         ledger_page = self.request.GET.get('ledger_page')
         context['ledger'] = ledger_paginator.get_page(ledger_page)
+        context['ledger_page_range'] = context['ledger'].paginator.get_elided_page_range(context['ledger'].number, on_each_side=1, on_ends=1)
         
         # Add payment form and financial summary to context
         context['payment_form'] = CustomerPaymentForm(customer=customer)
@@ -731,6 +737,7 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         sows_paginator = Paginator(sows_qs, 10)
         sow_page = self.request.GET.get('sow_page')
         context['sows'] = sows_paginator.get_page(sow_page)
+        context['sows_page_range'] = context['sows'].paginator.get_elided_page_range(context['sows'].number, on_each_side=1, on_ends=1)
         
         context['sow_q'] = sow_q
         
@@ -1104,6 +1111,8 @@ class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         context['filter_form'] = ProductFilterForm(self.request.GET)
         context['category_form'] = CategoryCreateForm()
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         return context
 
 class ProductDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
@@ -1447,6 +1456,8 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         
         return context
 
@@ -1789,6 +1800,8 @@ class PurchaseOrderListView(LoginRequiredMixin, PermissionRequiredMixin, ListVie
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         return context
 
 class PurchaseOrderDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
@@ -1826,6 +1839,8 @@ class SupplierListView(LoginRequiredMixin, ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['q'] = self.request.GET.get('q', '')
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         return context
 
 class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
@@ -1847,6 +1862,7 @@ class SupplierDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
         context['purchase_orders'] = page_obj
         context['is_paginated'] = page_obj.has_other_pages()
         context['page_obj'] = page_obj
+        context['po_page_range'] = paginator.get_elided_page_range(page_obj.number, on_each_side=1, on_ends=1)
         
         query_params = self.request.GET.copy()
         if 'page' in query_params:
@@ -2142,6 +2158,8 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         return context
 
 class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -2203,6 +2221,8 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
         if 'page' in query_params:
             query_params.pop('page')
         context['query_params'] = query_params.urlencode()
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         return context
 
 class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -2223,4 +2243,6 @@ class ProductHistoryDetailView(LoginRequiredMixin, PermissionRequiredMixin, List
         context = super().get_context_data(**kwargs)
         context['product'] = self.product
         process_history_records(context['page_obj'])
+        if context.get('page_obj'):
+            context['elided_page_range'] = context['page_obj'].paginator.get_elided_page_range(context['page_obj'].number, on_each_side=1, on_ends=1)
         return context

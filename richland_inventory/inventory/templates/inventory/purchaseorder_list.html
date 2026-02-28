@@ -163,23 +163,27 @@
             <ul class="pagination shadow-sm">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}">Previous</a>
+                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}&{{ query_params }}">Previous</a>
                     </li>
                 {% else %}
                     <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
                 {% endif %}
                 
-                {% for i in paginator.page_range %}
-                    {% if page_obj.number == i %}
-                        <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                {% for i in elided_page_range %}
+                    {% if i == page_obj.paginator.ELLIPSIS %}
+                        <li class="page-item disabled"><span class="page-link border-0">...</span></li>
                     {% else %}
-                        <li class="page-item"><a class="page-link border-0" href="?page={{ i }}">{{ i }}</a></li>
+                        {% if page_obj.number == i %}
+                            <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&{{ query_params }}">{{ i }}</a></li>
+                        {% endif %}
                     {% endif %}
                 {% endfor %}
                 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}">Next</a>
+                        <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&{{ query_params }}">Next</a>
                     </li>
                 {% else %}
                     <li class="page-item disabled"><span class="page-link border-0">Next</span></li>

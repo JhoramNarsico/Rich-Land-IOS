@@ -185,11 +185,15 @@
                     <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
                 {% endif %}
                 
-                {% for i in paginator.page_range %}
-                    {% if page_obj.number == i %}
-                        <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                {% for i in elided_page_range %}
+                    {% if i == page_obj.paginator.ELLIPSIS %}
+                        <li class="page-item disabled"><span class="page-link border-0">...</span></li>
                     {% else %}
-                        <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
+                        {% if page_obj.number == i %}
+                            <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
+                        {% endif %}
                     {% endif %}
                 {% endfor %}
                 
