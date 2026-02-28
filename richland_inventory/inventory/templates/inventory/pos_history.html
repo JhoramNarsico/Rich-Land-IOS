@@ -45,6 +45,7 @@
                         <th>Date & Time</th>
                         <th>Customer</th>
                         <th>Cashier</th>
+                        <th class="text-center">Method</th>
                         <th class="text-end">Total Amount</th>
                         <th class="text-end">Payment</th>
                         <th class="text-end pe-4">Actions</th>
@@ -61,6 +62,21 @@
                         </td>
                         <td>{{ sale.customer.name|default:"Walk-in" }}</td>
                         <td>{{ sale.cashier.username }}</td>
+                        <td class="text-center">
+                            {% if sale.payment_method == 'CASH' %}
+                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-2">Cash</span>
+                            {% elif sale.payment_method == 'CREDIT' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle rounded-pill px-2">Credit</span>
+                            {% elif sale.payment_method == 'CARD' %}
+                                <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-2">Card</span>
+                            {% elif sale.payment_method == 'GCASH' %}
+                                <span class="badge rounded-pill px-2" style="background-color: #0055FF30; color: #0055FF; border: 1px solid #0055FF80;">GCash</span>
+                            {% elif sale.payment_method == 'BANK' %}
+                                <span class="badge rounded-pill px-2" style="background-color: #A020F030; color: #A020F0; border: 1px solid #A020F080;">Bank</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark border rounded-pill px-2">{{ sale.get_payment_method_display }}</span>
+                            {% endif %}
+                        </td>
                         <td class="text-end fw-bold">₱{{ sale.total_amount|intcomma }}</td>
                         <td class="text-end">
                             <small class="text-muted d-block">Paid: ₱{{ sale.amount_paid|intcomma }}</small>
@@ -74,7 +90,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="text-center py-5 text-muted">No sales history found.</td>
+                        <td colspan="8" class="text-center py-5 text-muted">No sales history found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

@@ -207,10 +207,16 @@
                 <div class="mb-4 text-center">
                     <div class="btn-group w-100" role="group">
                         <input type="radio" class="btn-check" name="paymentMethod" id="pmCash" value="CASH" checked onchange="togglePaymentMethod()">
-                        <label class="btn btn-outline-success" for="pmCash"><i class="fas fa-money-bill-wave me-2"></i>Cash</label>
+                        <label class="btn btn-outline-success" for="pmCash"><i class="fas fa-money-bill-wave me-1"></i>Cash</label>
+                        
+                        <input type="radio" class="btn-check" name="paymentMethod" id="pmGcash" value="GCASH" onchange="togglePaymentMethod()">
+                        <label class="btn btn-outline-primary" for="pmGcash">GCash</label>
+
+                        <input type="radio" class="btn-check" name="paymentMethod" id="pmBank" value="BANK" onchange="togglePaymentMethod()">
+                        <label class="btn btn-outline-secondary" for="pmBank">Bank</label>
                         
                         <input type="radio" class="btn-check" name="paymentMethod" id="pmCredit" value="CREDIT" onchange="togglePaymentMethod()">
-                        <label class="btn btn-outline-danger" for="pmCredit"><i class="fas fa-file-invoice-dollar me-2"></i>Charge / Credit</label>
+                        <label class="btn btn-outline-danger" for="pmCredit"><i class="fas fa-file-invoice-dollar me-1"></i>Credit</label>
                     </div>
                 </div>
 
@@ -219,7 +225,7 @@
                     <h1 class="fw-bold text-dark" id="modalTotalAmount">₱0.00</h1>
                 </div>
                 <div class="mb-4" id="cashInputGroup">
-                    <label class="form-label fw-bold">Cash Tendered</label>
+                    <label class="form-label fw-bold" id="paymentAmountLabel">Cash Tendered</label>
                     <div class="input-group input-group-lg">
                         <span class="input-group-text bg-light">₱</span>
                         <input type="number" id="amountPaidInput" class="form-control fw-bold" placeholder="0.00" step="0.01">
@@ -464,9 +470,16 @@
         confirmBtn.disabled = true;
 
         const customerId = customerSelect.value;
+        const creditBtn = document.getElementById('pmCredit');
+        const creditLabel = document.querySelector('label[for="pmCredit"]');
+
         if (customerId) {
-            document.getElementById('pmCredit').checked = true;
+            creditBtn.disabled = false;
+            creditLabel.style.display = '';
+            creditBtn.checked = true;
         } else {
+            creditBtn.disabled = true;
+            creditLabel.style.display = 'none';
             document.getElementById('pmCash').checked = true;
         }
         togglePaymentMethod();
@@ -477,8 +490,10 @@
 
     function togglePaymentMethod() {
         const isCredit = document.getElementById('pmCredit').checked;
+        const isCash = document.getElementById('pmCash').checked;
         const cashInputGroup = document.getElementById('cashInputGroup');
         const changeGroup = document.getElementById('changeGroup');
+        const label = document.getElementById('paymentAmountLabel');
         
         if (isCredit) {
             cashInputGroup.style.display = 'none';
@@ -487,6 +502,11 @@
         } else {
             cashInputGroup.style.display = 'block';
             changeGroup.style.display = 'flex';
+            if (isCash) {
+                label.innerText = "Cash Tendered";
+            } else {
+                label.innerText = "Amount Paid";
+            }
             calculateChange(); // Re-validate cash
         }
     }

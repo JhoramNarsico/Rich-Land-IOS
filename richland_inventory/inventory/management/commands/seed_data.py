@@ -70,6 +70,17 @@ class Command(BaseCommand):
             {'name': 'Maria\'s Auto Repair', 'email': 'maria@repair.com', 'phone': '0918-333-4444', 'address': '456 Service Rd, Pasig', 'credit_limit': 25000},
             {'name': 'Walk-in Customer', 'address': 'Store Counter', 'credit_limit': 0},
         ]
+
+        # Generate 100 additional customers
+        for i in range(1, 101):
+            customers_data.append({
+                'name': f'Customer {i} - Auto Shop',
+                'email': f'customer{i}@example.com',
+                'phone': f'09{random.randint(10, 99)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}',
+                'address': f'{random.randint(1, 999)} Street Name, City',
+                'credit_limit': random.choice([10000, 20000, 50000, 100000])
+            })
+
         customer_objs = []
         for data in customers_data:
             cust, created = Customer.objects.get_or_create(name=data['name'], defaults=data)
@@ -79,14 +90,14 @@ class Command(BaseCommand):
         
         # 4. Create Products
         products_data = [
-            {'name': 'Motolite Gold Battery', 'sku': 'BAT-001', 'cat': 'Batteries', 'price': 4500.00, 'qty': 20},
-            {'name': 'Shell Helix Ultra 5W-40', 'sku': 'OIL-SH-5W40', 'cat': 'Fluids & Chemicals', 'price': 2800.00, 'qty': 50},
-            {'name': 'Brembo Brake Pads (Front)', 'sku': 'BRK-PAD-F', 'cat': 'Braking System', 'price': 3500.00, 'qty': 15},
-            {'name': 'Michelin Pilot Sport 4', 'sku': 'TIRE-MICH-18', 'cat': 'Tires & Wheels', 'price': 12500.00, 'qty': 8},
-            {'name': 'Spark Plug (NGK)', 'sku': 'SPK-NGK-01', 'cat': 'Engine Parts', 'price': 250.00, 'qty': 200},
-            {'name': 'Car Mat Set (Universal)', 'sku': 'ACC-MAT-UNI', 'cat': 'Accessories', 'price': 1200.00, 'qty': 12},
-            {'name': 'Oil Filter (Bosch)', 'sku': 'FLT-OIL-B01', 'cat': 'Engine Parts', 'price': 450.00, 'qty': 45},
-            {'name': 'Brake Fluid DOT4', 'sku': 'FLD-BRK-DOT4', 'cat': 'Fluids & Chemicals', 'price': 350.00, 'qty': 60},
+            {'name': 'Motolite Gold Battery', 'sku': 'BAT-001', 'cat': 'Batteries', 'price': 4500.00, 'qty': 200},
+            {'name': 'Shell Helix Ultra 5W-40', 'sku': 'OIL-SH-5W40', 'cat': 'Fluids & Chemicals', 'price': 2800.00, 'qty': 500},
+            {'name': 'Brembo Brake Pads (Front)', 'sku': 'BRK-PAD-F', 'cat': 'Braking System', 'price': 3500.00, 'qty': 150},
+            {'name': 'Michelin Pilot Sport 4', 'sku': 'TIRE-MICH-18', 'cat': 'Tires & Wheels', 'price': 12500.00, 'qty': 100},
+            {'name': 'Spark Plug (NGK)', 'sku': 'SPK-NGK-01', 'cat': 'Engine Parts', 'price': 250.00, 'qty': 2000},
+            {'name': 'Car Mat Set (Universal)', 'sku': 'ACC-MAT-UNI', 'cat': 'Accessories', 'price': 1200.00, 'qty': 120},
+            {'name': 'Oil Filter (Bosch)', 'sku': 'FLT-OIL-B01', 'cat': 'Engine Parts', 'price': 450.00, 'qty': 450},
+            {'name': 'Brake Fluid DOT4', 'sku': 'FLD-BRK-DOT4', 'cat': 'Fluids & Chemicals', 'price': 350.00, 'qty': 600},
         ]
 
         prod_objs = []
@@ -218,51 +229,73 @@ class Command(BaseCommand):
         self.stdout.write("Created 100 additional Purchase Orders.")
 
         # 7. Generate POS History
-        self.stdout.write("Generating POS transaction history...")
+        self.stdout.write("Generating POS transaction history (Target: 2.5M - 3M per month)...")
         end_date = timezone.now()
-        for _ in range(600):
-            random_days = random.randint(0, 730)
-            txn_date = end_date - timedelta(days=random_days)
-            
-            is_walk_in = random.random() < 0.4
-            customer = walk_in_customer if is_walk_in else random.choice(customer_objs[:-1])
-            payment_method = 'CASH' if is_walk_in else random.choice(['CASH', 'CREDIT', 'CARD'])
+        # Generate for the last 12 months
+        start_date = end_date - timedelta(days=365)
+        start_date = start_date.replace(day=1)
+        current_dt = start_date
 
-            sale_record = POSSale.objects.create(
-                receipt_id=f"REC-{uuid.uuid4().hex[:8].upper()}",
-                cashier=user, 
-                customer=customer, 
-                payment_method=payment_method, 
-                timestamp=txn_date
-            )
+        while current_dt < end_date:
+            # Calculate month end
+            if current_dt.month == 12:
+                next_month = current_dt.replace(year=current_dt.year+1, month=1, day=1)
+            else:
+                next_month = current_dt.replace(month=current_dt.month+1, day=1)
             
-            total_cost = Decimal('0')
-            num_items = random.randint(1, 4)
+            days_in_month = (next_month - current_dt).days
+            target_revenue = Decimal(random.uniform(2500000, 3000000))
+            current_revenue = Decimal('0')
             
-            with transaction.atomic():
-                for _ in range(num_items):
-                    product = random.choice(prod_objs)
-                    if product.quantity > 0:
-                        qty = random.randint(1, min(3, product.quantity))
-                        st = StockTransaction.objects.create(
-                            product=product, pos_sale=sale_record, transaction_type='OUT',
-                            transaction_reason='SALE', quantity=qty, selling_price=product.price,
-                            user=user, notes=f"POS Sale: {sale_record.receipt_id}"
-                        )
-                        st.timestamp = txn_date
-                        st.save()
-                        product.quantity -= qty
-                        product.save()
-                        total_cost += (Decimal(str(product.price)) * qty)
+            self.stdout.write(f"  - Generating {current_dt.strftime('%B %Y')}: Target PHP {target_revenue:,.2f}")
+            
+            while current_revenue < target_revenue:
+                day_offset = random.randint(0, days_in_month - 1)
+                hour = random.randint(8, 18)
+                minute = random.randint(0, 59)
+                txn_date = current_dt + timedelta(days=day_offset, hours=hour, minutes=minute)
+                if txn_date > end_date: txn_date = end_date
+
+                is_walk_in = random.random() < 0.4
+                customer = walk_in_customer if is_walk_in else random.choice(customer_objs[:-1])
+                payment_method = 'CASH' if is_walk_in else random.choice(['CASH', 'CREDIT', 'CARD'])
+
+                sale_record = POSSale.objects.create(
+                    receipt_id=f"REC-{uuid.uuid4().hex[:8].upper()}",
+                    cashier=user, customer=customer, payment_method=payment_method, timestamp=txn_date
+                )
+                
+                total_cost = Decimal('0')
+                num_items = random.randint(1, 5)
+                # Weighted selection: favor high-value items (indices 0-3)
+                selected_products = random.choices(prod_objs, weights=[15, 15, 15, 25, 5, 10, 5, 10], k=num_items)
+                
+                for product in selected_products:
+                    if product.quantity < 20: product.quantity += 100 # Magic restock
+                    qty = random.randint(1, 4)
+                    
+                    st = StockTransaction.objects.create(
+                        product=product, pos_sale=sale_record, transaction_type='OUT',
+                        transaction_reason='SALE', quantity=qty, selling_price=product.price,
+                        user=user, notes=f"POS Sale: {sale_record.receipt_id}"
+                    )
+                    st.timestamp = txn_date
+                    st.save()
+                    
+                    product.quantity -= qty
+                    product.save()
+                    total_cost += (Decimal(str(product.price)) * qty)
 
                 if total_cost > 0:
                     sale_record.total_amount = total_cost
-                    if payment_method == 'CASH':
-                        sale_record.amount_paid = total_cost
+                    if payment_method == 'CASH': sale_record.amount_paid = total_cost
                     sale_record.save()
+                    current_revenue += total_cost
                 else:
                     sale_record.delete()
-        self.stdout.write("Generated 600 POS sales over 2 years.")
+            
+            current_dt = next_month
+        self.stdout.write("Generated high-volume POS sales for the last 12 months.")
 
         # 8. Generate some payments for credit sales
         self.stdout.write("Generating customer payments for credit sales...")

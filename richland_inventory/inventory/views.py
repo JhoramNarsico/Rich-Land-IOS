@@ -1349,9 +1349,9 @@ def pos_checkout(request):
             
             # If credit, immediate payment is 0
             amount_paid = Decimal('0') 
-        elif payment_method == 'CASH':
+        else: # CASH, CARD, GCASH, BANK
              if amount_paid < total_calculated_cost:
-                 raise ValueError("Amount paid is less than total amount.")
+                 return JsonResponse({'status': 'error', 'message': 'Payment amount is less than total cost.'}, status=400)
 
         receipt_id = f"REC-{uuid.uuid4().hex[:8].upper()}"
         
@@ -1364,7 +1364,7 @@ def pos_checkout(request):
                 payment_method=payment_method,
                 total_amount=total_calculated_cost, 
                 amount_paid=amount_paid,
-                change_given=(amount_paid - total_calculated_cost) if payment_method == 'CASH' else 0
+                change_given=(amount_paid - total_calculated_cost) if payment_method != 'CREDIT' else 0
             )
 
             receipt_items_response = []
@@ -1718,7 +1718,9 @@ def analytics_dashboard(request):
     # E. Sales Breakdown (Cash, Charges, Hydraulic)
     
     # 1. Cash (Cash + Card)
-    cash_sales = pos_sales.filter(payment_method__in=['CASH', 'CARD']).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    cash_sales = pos_sales.filter(
+        payment_method__in=['CASH', 'CARD', 'GCASH', 'BANK']
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     
     # 2. Hydraulic Jobs (Credit) - Identified by 'JOB-' or 'SOW-' prefix
     hydraulic_sales = pos_sales.filter(

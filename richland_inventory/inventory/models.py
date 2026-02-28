@@ -160,6 +160,8 @@ class POSSale(models.Model):
         CASH = 'CASH', 'Cash'
         CREDIT = 'CREDIT', 'Charge/Credit'
         CARD = 'CARD', 'Card/Digital'
+        GCASH = 'GCASH', 'GCash'
+        BANK = 'BANK', 'Bank Transfer'
 
     receipt_id = models.CharField(max_length=50, unique=True, editable=False)
     cashier = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
