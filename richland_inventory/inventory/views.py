@@ -1693,21 +1693,26 @@ def analytics_dashboard(request):
     trend_sales_values = [float(sales_map.get(d, 0)) for d in all_dates]
     trend_expense_values = [float(exp_map.get(d, 0)) for d in all_dates]
     
-    # E. Sales vs Charges (Payment Method)
-    pay_qs = pos_sales.values('payment_method').annotate(total=Sum('total_amount')).order_by('-total')
-    pay_labels = []
-    pay_values = []
-    for item in pay_qs:
-        method = item['payment_method']
-        if method == 'CREDIT':
-            pay_labels.append('Charges (Credit)')
-        elif method == 'CASH':
-            pay_labels.append('Cash Sales')
-        elif method == 'CARD':
-            pay_labels.append('Card Sales')
-        else:
-            pay_labels.append(method)
-        pay_values.append(float(item['total']))
+    # E. Sales Breakdown (Cash, Charges, Hydraulic)
+    
+    # 1. Cash (Cash + Card)
+    cash_sales = pos_sales.filter(payment_method__in=['CASH', 'CARD']).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    
+    # 2. Hydraulic Jobs (Credit) - Identified by 'JOB-' or 'SOW-' prefix
+    hydraulic_sales = pos_sales.filter(
+        Q(receipt_id__startswith='JOB') | Q(receipt_id__startswith='SOW'),
+        payment_method='CREDIT'
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    
+    # 3. Charges (Credit excluding Hydraulic)
+    other_charges = pos_sales.filter(
+        payment_method='CREDIT'
+    ).exclude(
+        Q(receipt_id__startswith='JOB') | Q(receipt_id__startswith='SOW')
+    ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
+    
+    pay_labels = ['Cash', 'Charges', 'Hydraulic Jobs']
+    pay_values = [float(cash_sales), float(other_charges), float(hydraulic_sales)]
 
     context = {
         'filter_form': filter_form,
