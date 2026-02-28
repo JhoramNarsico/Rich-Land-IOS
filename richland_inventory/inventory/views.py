@@ -739,11 +739,22 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         # URL Params for Pagination Links (Preserve other filters)
         params = self.request.GET.copy()
         if 'ledger_page' in params: del params['ledger_page']
+        if 'sow_page' in params: del params['sow_page']
         context['ledger_query_params'] = params.urlencode()
         
         params = self.request.GET.copy()
         if 'sow_page' in params: del params['sow_page']
+        if 'ledger_page' in params: del params['ledger_page']
         context['sow_query_params'] = params.urlencode()
+
+        # Determine active tab
+        context['active_tab'] = 'ledger'
+        if 'sow_page' in self.request.GET:
+            context['active_tab'] = 'sow'
+        elif 'ledger_page' in self.request.GET:
+            context['active_tab'] = 'ledger'
+        elif 'sow_q' in self.request.GET:
+            context['active_tab'] = 'sow'
 
         # URL Params for Exports (Clean all pagination)
         query_params = self.request.GET.copy()
