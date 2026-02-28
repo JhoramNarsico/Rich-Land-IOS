@@ -65,7 +65,6 @@ def hydraulic_sow_create(request, pk):
         return response
 
     if request.method == 'POST':
-        # Parse cost safely for logic
         cost_input = request.POST.get('cost')
         cost_decimal = Decimal('0.00')
         if cost_input:
@@ -73,6 +72,71 @@ def hydraulic_sow_create(request, pk):
                 cost_decimal = Decimal(str(cost_input))
             except (ValueError, TypeError, InvalidOperation):
                 pass
+
+        charge_account = request.POST.get('charge_account')
+        mark_paid = request.POST.get('mark_paid')
+
+        # --- VALIDATION: Required Fields ---
+        hose_type = request.POST.get('hose_type', '').strip()
+        diameter = request.POST.get('diameter', '').strip()
+        length = request.POST.get('length', '').strip()
+        fitting_a = request.POST.get('fitting_a', '').strip()
+        fitting_b = request.POST.get('fitting_b', '').strip()
+
+        if not all([hose_type, diameter, length, fitting_a, fitting_b]):
+            messages.error(request, "Please fill in all required fields: Hose Type, Diameter, Length, and Fittings.")
+            sow_data = HydraulicSow(
+                customer=customer, hose_type=hose_type,
+                diameter=diameter, length=request.POST.get('length') or None,
+                pressure=request.POST.get('pressure') or None, application=request.POST.get('application', ''),
+                fitting_a=fitting_a, fitting_b=fitting_b,
+                orientation=request.POST.get('orientation') or None, protection=request.POST.get('protection', ''),
+                cost=cost_decimal if cost_decimal > 0 else None, notes=request.POST.get('notes', '')
+            )
+            return render(request, 'inventory/hydraulic_sow_form.html', {
+                'customer': customer, 'sow': sow_data, 'page_title': 'Create Hydraulic SOW', 
+                'is_charged': False, 'next_url': next_url, 'is_charge_checked': charge_account, 'is_paid_checked': mark_paid})
+
+        # --- VALIDATION for named customers ---
+        if customer.name != "Walk-in Customer":
+            has_cost = cost_decimal > 0
+            has_payment_method = charge_account or mark_paid
+            error_message = None
+
+            if not has_cost:
+                error_message = "A service cost is required for all customer jobs."
+            elif not has_payment_method:
+                error_message = "You must select a payment method (Charge to Account or Pay Cash)."
+
+            if error_message:
+                messages.error(request, error_message)
+                sow_data = HydraulicSow(
+                    customer=customer, hose_type=request.POST.get('hose_type', ''),
+                    diameter=request.POST.get('diameter', ''), length=request.POST.get('length') or None,
+                    pressure=request.POST.get('pressure') or None, application=request.POST.get('application', ''),
+                    fitting_a=request.POST.get('fitting_a', ''), fitting_b=request.POST.get('fitting_b', ''),
+                    orientation=request.POST.get('orientation') or None, protection=request.POST.get('protection', ''),
+                    cost=cost_decimal if cost_decimal > 0 else None, notes=request.POST.get('notes', '')
+                )
+                return render(request, 'inventory/hydraulic_sow_form.html', {
+                    'customer': customer, 
+                    'sow': sow_data, 
+                    'page_title': 'Create Hydraulic SOW', 
+                    'is_charged': False, 
+                    'next_url': next_url,
+                    'is_charge_checked': charge_account,
+                    'is_paid_checked': mark_paid})
+        
+        # --- VALIDATION for Walk-in Customers ---
+        elif customer.name == "Walk-in Customer" and cost_decimal <= 0:
+            messages.error(request, "A service cost is required for Walk-in Customers.")
+            sow_data = HydraulicSow(
+                customer=customer, hose_type=request.POST.get('hose_type', ''),
+                diameter=request.POST.get('diameter', ''), length=request.POST.get('length') or None,
+                pressure=request.POST.get('pressure') or None, application=request.POST.get('application', ''),
+                cost=None, notes=request.POST.get('notes', '')
+            )
+            return render(request, 'inventory/hydraulic_sow_form.html', {'customer': customer, 'sow': sow_data, 'page_title': 'Create Hydraulic SOW', 'is_charged': False, 'next_url': next_url})
 
         sow = HydraulicSow.objects.create(
             customer=customer,
@@ -91,11 +155,9 @@ def hydraulic_sow_create(request, pk):
         )
 
         if cost_decimal > 0:
-            charge_account = request.POST.get('charge_account')
-            
             # For Walk-in Customers, always generate a receipt (Cash default) if there is a cost.
-            # For named customers, only generate if charged (Credit) to allow for Quotes.
-            if charge_account or customer.name == "Walk-in Customer":
+            # For named customers, only generate if charged (Credit) or marked paid (Cash).
+            if charge_account or mark_paid or customer.name == "Walk-in Customer":
                 payment_method = 'CREDIT' if charge_account else 'CASH'
                 amount_paid = 0 if charge_account else cost_decimal
 
@@ -137,6 +199,79 @@ def hydraulic_sow_update(request, pk, sow_pk):
         sow.save()
 
     if request.method == 'POST':
+        cost_input = request.POST.get('cost')
+        cost_decimal = Decimal('0.00')
+        if cost_input:
+            try:
+                cost_decimal = Decimal(str(cost_input))
+            except (ValueError, TypeError, InvalidOperation):
+                pass
+
+        charge_to_account = request.POST.get('charge_account')
+        mark_paid = request.POST.get('mark_paid')
+        ledger_entry = POSSale.objects.filter(receipt_id=sow.sow_id).first()
+        if not ledger_entry:
+            ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
+
+        # --- VALIDATION: Required Fields ---
+        hose_type = request.POST.get('hose_type', '').strip()
+        diameter = request.POST.get('diameter', '').strip()
+        length = request.POST.get('length', '').strip()
+        fitting_a = request.POST.get('fitting_a', '').strip()
+        fitting_b = request.POST.get('fitting_b', '').strip()
+
+        if not all([hose_type, diameter, length, fitting_a, fitting_b]):
+            messages.error(request, "Please fill in all required fields: Hose Type, Diameter, Length, and Fittings.")
+            sow.hose_type = hose_type
+            sow.diameter = diameter
+            sow.fitting_a = fitting_a
+            sow.fitting_b = fitting_b
+            sow.length = request.POST.get('length') or None
+            sow.pressure = request.POST.get('pressure') or None
+            sow.application = request.POST.get('application', '')
+            sow.orientation = request.POST.get('orientation') or None
+            sow.protection = request.POST.get('protection', '')
+            sow.notes = request.POST.get('notes', '')
+            sow.cost = cost_decimal if cost_decimal > 0 else None
+            return render(request, 'inventory/hydraulic_sow_form.html', {'customer': customer, 'sow': sow, 'page_title': f'Edit Hydraulic SOW {sow.sow_id or sow.id}', 'is_charged': ledger_entry is not None, 'is_charge_checked': charge_to_account, 'is_paid_checked': mark_paid})
+
+        # --- VALIDATION for named customers on un-charged SOWs ---
+        if not ledger_entry and customer.name != "Walk-in Customer":
+            has_cost = cost_decimal > 0
+            has_payment_method = charge_to_account or mark_paid
+            error_message = None
+
+            if not has_cost:
+                error_message = "A service cost is required to create a new charge for this job."
+            elif not has_payment_method:
+                error_message = "You must select a payment method (Charge or Pay Cash) to create a new charge."
+            
+            if error_message:
+                messages.error(request, error_message)
+                sow.hose_type = request.POST.get('hose_type', ''); sow.diameter = request.POST.get('diameter', '')
+                sow.length = request.POST.get('length') or None; sow.pressure = request.POST.get('pressure') or None
+                sow.application = request.POST.get('application', ''); sow.fitting_a = request.POST.get('fitting_a', '')
+                sow.fitting_b = request.POST.get('fitting_b', ''); sow.orientation = request.POST.get('orientation') or None
+                sow.protection = request.POST.get('protection', ''); sow.notes = request.POST.get('notes', '')
+                sow.cost = cost_decimal if cost_decimal > 0 else None
+                return render(request, 'inventory/hydraulic_sow_form.html', {
+                    'customer': customer, 'sow': sow, 
+                    'page_title': f'Edit Hydraulic SOW {sow.sow_id or sow.id}', 
+                    'is_charged': False,
+                    'is_charge_checked': charge_to_account,
+                    'is_paid_checked': mark_paid
+                })
+        
+        # --- VALIDATION for Walk-in Customers ---
+        elif not ledger_entry and customer.name == "Walk-in Customer" and cost_decimal <= 0:
+            messages.error(request, "A service cost is required for Walk-in Customers.")
+            sow.hose_type = request.POST.get('hose_type', ''); sow.diameter = request.POST.get('diameter', '')
+            sow.cost = None
+            return render(request, 'inventory/hydraulic_sow_form.html', {
+                'customer': customer, 'sow': sow, 
+                'page_title': f'Edit Hydraulic SOW {sow.sow_id or sow.id}', 'is_charged': False
+            })
+
         # Update SOW fields
         sow.hose_type = request.POST.get('hose_type', '')
         sow.diameter = request.POST.get('diameter', '')
@@ -149,22 +284,10 @@ def hydraulic_sow_update(request, pk, sow_pk):
         sow.protection = request.POST.get('protection', '')
         sow.notes = request.POST.get('notes', '')
 
-        cost_input = request.POST.get('cost')
-        cost_decimal = Decimal('0.00')
-        if cost_input:
-            try:
-                cost_decimal = Decimal(str(cost_input))
-            except (ValueError, TypeError, InvalidOperation):
-                pass
         sow.cost = cost_decimal if cost_decimal > 0 else None
         sow.save()
 
         # Handle charging logic
-        charge_to_account = request.POST.get('charge_account')
-        ledger_entry = POSSale.objects.filter(receipt_id=sow.sow_id).first()
-        if not ledger_entry:
-            ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
-
         if ledger_entry:
             if ledger_entry.total_amount != cost_decimal:
                 ledger_entry.total_amount = cost_decimal
@@ -172,7 +295,7 @@ def hydraulic_sow_update(request, pk, sow_pk):
                 messages.success(request, f"SOW updated. Associated charge was adjusted to ₱{cost_decimal:,.2f}.")
             else:
                 messages.success(request, "SOW updated. No changes to the associated charge.")
-        elif (charge_to_account or customer.name == "Walk-in Customer") and cost_decimal > 0:
+        elif (charge_to_account or mark_paid or customer.name == "Walk-in Customer") and cost_decimal > 0:
             payment_method = 'CREDIT' if charge_to_account else 'CASH'
             amount_paid = 0 if charge_to_account else cost_decimal
             
@@ -193,6 +316,10 @@ def hydraulic_sow_update(request, pk, sow_pk):
     ledger_entry = POSSale.objects.filter(receipt_id=sow.sow_id).first()
     if not ledger_entry:
         ledger_entry = POSSale.objects.filter(receipt_id=f"SOW-{sow.id}").first()
+    
+    # Attach ledger to sow object temporarily for template logic
+    sow.pos_sale = ledger_entry
+    
     return render(request, 'inventory/hydraulic_sow_form.html', {'customer': customer, 'sow': sow, 'page_title': f'Edit Hydraulic SOW {sow.sow_id or sow.id}', 'is_charged': ledger_entry is not None})
 
 def hydraulic_sow_import(request):
@@ -548,21 +675,34 @@ class CustomerListView(LoginRequiredMixin, ListView):
             balance=F('total_credit_sales') - F('total_payments_made')
         ).order_by('name')
 
+        status = self.request.GET.get('status')
+        if status == 'outstanding':
+            qs = qs.filter(balance__gt=0)
+        elif status == 'cleared':
+            qs = qs.filter(balance__lte=0)
+
         self.filter_form = CustomerFilterForm(self.request.GET)
         if self.filter_form.is_valid():
             q = self.filter_form.cleaned_data.get('q')
             if q:
-                qs = qs.filter(
-                    Q(name__icontains=q) | 
-                    Q(email__icontains=q) | 
-                    Q(phone__icontains=q) | 
-                    Q(address__icontains=q)
-                )
+                query = Q(name__icontains=q) | \
+                        Q(email__icontains=q) | \
+                        Q(phone__icontains=q) | \
+                        Q(address__icontains=q)
+                
+                try:
+                    balance_val = Decimal(q.replace(',', ''))
+                    query |= Q(balance=balance_val)
+                except (ValueError, TypeError, InvalidOperation):
+                    pass
+                
+                qs = qs.filter(query)
         return qs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['filter_form'] = self.filter_form
+        context['status'] = self.request.GET.get('status', '')
         query_params = self.request.GET.copy()
         if 'page' in query_params:
             query_params.pop('page')
