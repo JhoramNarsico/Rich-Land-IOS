@@ -165,9 +165,8 @@
         <div class="cart-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold"><i class="fas fa-shopping-cart me-2"></i>Current Order</h5>
             <div class="w-50 d-flex gap-1">
-                <select id="customerSelect" class="form-select form-select-sm">
-                    <option value="">Walk-in Customer</option>
-                </select>
+                <input type="hidden" id="customerSelect" value="{{ preselected_customer_id|default:'' }}">
+                <input type="text" id="customerNameDisplay" class="form-control form-control-sm bg-white fw-bold" value="Walk-in Customer" readonly>
                 <a href="{% url 'inventory:pos_sow_create' %}" class="btn btn-sm btn-outline-primary" title="New Hydraulic Job">
                     <i class="fas fa-tools"></i>
                 </a>
@@ -451,14 +450,11 @@
 
     // --- CUSTOMER LOGIC ---
     function renderCustomers() {
-        allCustomers.forEach(c => {
-            const option = document.createElement('option');
-            option.value = c.id;
-            option.text = c.name;
-            customerSelect.appendChild(option);
-        });
         if (preselectedCustomerId) {
-            customerSelect.value = preselectedCustomerId;
+            const customer = allCustomers.find(c => c.id == preselectedCustomerId);
+            if (customer) {
+                document.getElementById('customerNameDisplay').value = customer.name;
+            }
         }
     }
 

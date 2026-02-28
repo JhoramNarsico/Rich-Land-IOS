@@ -519,7 +519,17 @@ class CustomerListView(LoginRequiredMixin, ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        qs = Customer.objects.exclude(name="Walk-in Customer").order_by('name')
+        # Annotate with total credit sales and total payments to avoid N+1 queries from get_balance()
+        credit_sales = Sum('purchases__total_amount', filter=Q(purchases__payment_method='CREDIT'))
+        total_payments = Sum('payments__amount')
+        
+        qs = Customer.objects.exclude(name="Walk-in Customer").annotate(
+            total_credit_sales=Coalesce(credit_sales, Decimal('0.00')),
+            total_payments_made=Coalesce(total_payments, Decimal('0.00'))
+        ).annotate(
+            balance=F('total_credit_sales') - F('total_payments_made')
+        ).order_by('name')
+
         self.filter_form = CustomerFilterForm(self.request.GET)
         if self.filter_form.is_valid():
             q = self.filter_form.cleaned_data.get('q')
@@ -568,6 +578,195 @@ class CustomerCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context['page_title'] = "Add New Customer"
         return context
+
+@login_required
+@require_POST
+def customer_payment(request, pk):
+    customer = get_object_or_404(Customer, pk=pk)
+    form = CustomerPaymentForm(request.POST, customer=customer)
+    if form.is_valid():
+        payment = form.save(commit=False)
+
+        sale_paid = form.cleaned_data.get('sale_paid')
+        amount = form.cleaned_data.get('amount')
+
+        if sale_paid:
+            # Check for overpayment on a specific invoice
+            paid_so_far = sale_paid.payments_received.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
+            outstanding = sale_paid.total_amount - paid_so_far
+            
+            if amount > outstanding + Decimal('0.001'): # Add tolerance
+                messages.error(request, f"Payment of {amount:,.2f} exceeds the outstanding amount of {outstanding:,.2f} for invoice {sale_paid.receipt_id}.")
+                return redirect('inventory:customer_detail', pk=pk)
+        else:
+            # General payment: Check against total customer balance
+            current_balance = customer.get_balance()
+            if amount > current_balance + Decimal('0.001'):
+                messages.error(request, f"Payment of {amount:,.2f} exceeds the total outstanding balance of {current_balance:,.2f}.")
+                return redirect('inventory:customer_detail', pk=pk)
+
+        payment.customer = customer
+        payment.recorded_by = request.user
+        payment.save()
+        messages.success(request, "Payment recorded successfully.")
+    else:
+        error_str = " ".join([f"{field.replace('_', ' ').title()}: {error}" for field, err_list in form.errors.items() for error in err_list])
+        messages.error(request, f"Error recording payment. {error_str if error_str else 'Please check your input.'}")
+    return redirect('inventory:customer_detail', pk=pk)
+
+@login_required
+def import_customers(request):
+    """Simple CSV Import for Customers"""
+    if request.method == "POST" and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+            messages.error(request, "Please upload a CSV or Excel file.")
+            return redirect('inventory:customer_list')
+
+        try:
+            data = []
+            if csv_file.name.endswith('.csv'):
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                data = list(reader)
+            elif csv_file.name.endswith('.xlsx'):
+                wb = load_workbook(csv_file, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
+                    for row in rows[1:]:
+                        row_dict = {headers[i]: (str(val) if val is not None else '') for i, val in enumerate(row) if i < len(headers)}
+                        data.append(row_dict)
+
+            count = 0
+            for row in data:
+                # Expects columns: name, email, phone, address
+                if row.get('name'):
+                    Customer.objects.update_or_create(
+                        name=row.get('name'),
+                        defaults={
+                            'email': row.get('email', ''),
+                            'phone': row.get('phone', ''),
+                            'address': row.get('address', ''),
+                            'tax_id': row.get('tax_id', ''),
+                        }
+                    )
+                    count += 1
+            messages.success(request, f"Successfully imported/updated {count} customers.")
+        except Exception as e:
+            messages.error(request, f"Error processing file: {e}")
+            
+        return redirect('inventory:customer_list')
+        
+    return render(request, 'inventory/customer_import.html')
+
+@login_required
+def import_ledger_entries(request, pk):
+    """Import Ledger Entries (Charges/Payments) from CSV"""
+    customer = get_object_or_404(Customer, pk=pk)
+    
+    if request.method == "POST" and request.FILES.get('csv_file'):
+        csv_file = request.FILES['csv_file']
+        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+            messages.error(request, "Please upload a CSV or Excel file.")
+            return redirect('inventory:customer_detail', pk=pk)
+
+        try:
+            data = []
+            if csv_file.name.endswith('.csv'):
+                decoded_file = csv_file.read().decode('utf-8').splitlines()
+                reader = csv.DictReader(decoded_file)
+                reader.fieldnames = [name.strip().lower() for name in reader.fieldnames]
+                data = list(reader)
+            elif csv_file.name.endswith('.xlsx'):
+                wb = load_workbook(csv_file, data_only=True)
+                ws = wb.active
+                rows = list(ws.iter_rows(values_only=True))
+                if rows:
+                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
+                    for row in rows[1:]:
+                        # Keep native types for date/numbers
+                        row_dict = {headers[i]: val for i, val in enumerate(row) if i < len(headers)}
+                        data.append(row_dict)
+            
+            # Expected headers mapping (naive)
+            # We expect: date, reference, description, charge, payment
+            
+            count_charges = 0
+            count_payments = 0
+            
+            with transaction.atomic():
+                for row in data:
+                    # Parse Date
+                    date_val = row.get('date')
+                    try:
+                        if isinstance(date_val, (datetime, datetime.date)):
+                            txn_date = date_val
+                            if not timezone.is_aware(txn_date) and isinstance(txn_date, datetime):
+                                txn_date = timezone.make_aware(txn_date)
+                        else:
+                            txn_date = datetime.strptime(str(date_val), '%Y-%m-%d')
+                            txn_date = timezone.make_aware(txn_date)
+                    except (ValueError, TypeError):
+                        # Skip if no valid date
+                        continue
+                        
+                    ref = row.get('reference') or ''
+                    desc = row.get('description') or ''
+                    
+                    # Parse Amounts
+                    try:
+                        charge_val = float(row.get('charge') or 0)
+                        payment_val = float(row.get('payment') or 0)
+                    except ValueError:
+                        continue
+                        
+                    # 1. Handle CHARGE (Debit) -> Create POSSale (Credit Sale)
+                    if charge_val > 0:
+                        # Check duplicate by receipt_id
+                        if not POSSale.objects.filter(receipt_id=ref).exists():
+                            POSSale.objects.create(
+                                receipt_id=ref, # Use CSV Ref as Receipt ID
+                                customer=customer,
+                                payment_method='CREDIT',
+                                total_amount=Decimal(charge_val),
+                                amount_paid=0,
+                                change_given=0,
+                                timestamp=txn_date,
+                                notes=desc, # Store description in notes
+                                cashier=request.user
+                            )
+                            count_charges += 1
+                            
+                    # 2. Handle PAYMENT (Credit) -> Create CustomerPayment
+                    if payment_val > 0:
+                        # Check duplicate logic could be tricky for payments as Ref is not unique
+                        # We will try to avoid exact duplicates (same date, same ref, same amount)
+                        if not CustomerPayment.objects.filter(
+                            customer=customer, 
+                            reference_number=ref, 
+                            amount=Decimal(payment_val),
+                            payment_date=txn_date
+                        ).exists():
+                            CustomerPayment.objects.create(
+                                customer=customer,
+                                amount=Decimal(payment_val),
+                                payment_date=txn_date,
+                                reference_number=ref,
+                                notes=desc,
+                                recorded_by=request.user
+                            )
+                            count_payments += 1
+                            
+            messages.success(request, f"Imported {count_charges} charges and {count_payments} payments.")
+            
+        except Exception as e:
+            messages.error(request, f"Error processing file: {e}")
+            
+        return redirect('inventory:customer_detail', pk=pk)
+
+    return render(request, 'inventory/ledger_import.html', {'customer': customer})
 
 class CustomerUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Customer
@@ -771,195 +970,6 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
         context['query_params'] = query_params.urlencode()
 
         return context
-
-@login_required
-@require_POST
-def customer_payment(request, pk):
-    customer = get_object_or_404(Customer, pk=pk)
-    form = CustomerPaymentForm(request.POST, customer=customer)
-    if form.is_valid():
-        payment = form.save(commit=False)
-
-        sale_paid = form.cleaned_data.get('sale_paid')
-        amount = form.cleaned_data.get('amount')
-
-        if sale_paid:
-            # Check for overpayment on a specific invoice
-            paid_so_far = sale_paid.payments_received.aggregate(total=Sum('amount'))['total'] or Decimal('0.00')
-            outstanding = sale_paid.total_amount - paid_so_far
-            
-            if amount > outstanding + Decimal('0.001'): # Add tolerance
-                messages.error(request, f"Payment of {amount:,.2f} exceeds the outstanding amount of {outstanding:,.2f} for invoice {sale_paid.receipt_id}.")
-                return redirect('inventory:customer_detail', pk=pk)
-        else:
-            # General payment: Check against total customer balance
-            current_balance = customer.get_balance()
-            if amount > current_balance + Decimal('0.001'):
-                messages.error(request, f"Payment of {amount:,.2f} exceeds the total outstanding balance of {current_balance:,.2f}.")
-                return redirect('inventory:customer_detail', pk=pk)
-
-        payment.customer = customer
-        payment.recorded_by = request.user
-        payment.save()
-        messages.success(request, "Payment recorded successfully.")
-    else:
-        error_str = " ".join([f"{field.replace('_', ' ').title()}: {error}" for field, err_list in form.errors.items() for error in err_list])
-        messages.error(request, f"Error recording payment. {error_str if error_str else 'Please check your input.'}")
-    return redirect('inventory:customer_detail', pk=pk)
-
-@login_required
-def import_customers(request):
-    """Simple CSV Import for Customers"""
-    if request.method == "POST" and request.FILES.get('csv_file'):
-        csv_file = request.FILES['csv_file']
-        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
-            messages.error(request, "Please upload a CSV or Excel file.")
-            return redirect('inventory:customer_list')
-
-        try:
-            data = []
-            if csv_file.name.endswith('.csv'):
-                decoded_file = csv_file.read().decode('utf-8').splitlines()
-                reader = csv.DictReader(decoded_file)
-                data = list(reader)
-            elif csv_file.name.endswith('.xlsx'):
-                wb = load_workbook(csv_file, data_only=True)
-                ws = wb.active
-                rows = list(ws.iter_rows(values_only=True))
-                if rows:
-                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
-                    for row in rows[1:]:
-                        row_dict = {headers[i]: (str(val) if val is not None else '') for i, val in enumerate(row) if i < len(headers)}
-                        data.append(row_dict)
-
-            count = 0
-            for row in data:
-                # Expects columns: name, email, phone, address
-                if row.get('name'):
-                    Customer.objects.update_or_create(
-                        name=row.get('name'),
-                        defaults={
-                            'email': row.get('email', ''),
-                            'phone': row.get('phone', ''),
-                            'address': row.get('address', ''),
-                            'tax_id': row.get('tax_id', ''),
-                        }
-                    )
-                    count += 1
-            messages.success(request, f"Successfully imported/updated {count} customers.")
-        except Exception as e:
-            messages.error(request, f"Error processing file: {e}")
-            
-        return redirect('inventory:customer_list')
-        
-    return render(request, 'inventory/customer_import.html')
-
-@login_required
-def import_ledger_entries(request, pk):
-    """Import Ledger Entries (Charges/Payments) from CSV"""
-    customer = get_object_or_404(Customer, pk=pk)
-    
-    if request.method == "POST" and request.FILES.get('csv_file'):
-        csv_file = request.FILES['csv_file']
-        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
-            messages.error(request, "Please upload a CSV or Excel file.")
-            return redirect('inventory:customer_detail', pk=pk)
-
-        try:
-            data = []
-            if csv_file.name.endswith('.csv'):
-                decoded_file = csv_file.read().decode('utf-8').splitlines()
-                reader = csv.DictReader(decoded_file)
-                reader.fieldnames = [name.strip().lower() for name in reader.fieldnames]
-                data = list(reader)
-            elif csv_file.name.endswith('.xlsx'):
-                wb = load_workbook(csv_file, data_only=True)
-                ws = wb.active
-                rows = list(ws.iter_rows(values_only=True))
-                if rows:
-                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
-                    for row in rows[1:]:
-                        # Keep native types for date/numbers
-                        row_dict = {headers[i]: val for i, val in enumerate(row) if i < len(headers)}
-                        data.append(row_dict)
-            
-            # Expected headers mapping (naive)
-            # We expect: date, reference, description, charge, payment
-            
-            count_charges = 0
-            count_payments = 0
-            
-            with transaction.atomic():
-                for row in data:
-                    # Parse Date
-                    date_val = row.get('date')
-                    try:
-                        if isinstance(date_val, (datetime, datetime.date)):
-                            txn_date = date_val
-                            if not timezone.is_aware(txn_date) and isinstance(txn_date, datetime):
-                                txn_date = timezone.make_aware(txn_date)
-                        else:
-                            txn_date = datetime.strptime(str(date_val), '%Y-%m-%d')
-                            txn_date = timezone.make_aware(txn_date)
-                    except (ValueError, TypeError):
-                        # Skip if no valid date
-                        continue
-                        
-                    ref = row.get('reference') or ''
-                    desc = row.get('description') or ''
-                    
-                    # Parse Amounts
-                    try:
-                        charge_val = float(row.get('charge') or 0)
-                        payment_val = float(row.get('payment') or 0)
-                    except ValueError:
-                        continue
-                        
-                    # 1. Handle CHARGE (Debit) -> Create POSSale (Credit Sale)
-                    if charge_val > 0:
-                        # Check duplicate by receipt_id
-                        if not POSSale.objects.filter(receipt_id=ref).exists():
-                            POSSale.objects.create(
-                                receipt_id=ref, # Use CSV Ref as Receipt ID
-                                customer=customer,
-                                payment_method='CREDIT',
-                                total_amount=Decimal(charge_val),
-                                amount_paid=0,
-                                change_given=0,
-                                timestamp=txn_date,
-                                notes=desc, # Store description in notes
-                                cashier=request.user
-                            )
-                            count_charges += 1
-                            
-                    # 2. Handle PAYMENT (Credit) -> Create CustomerPayment
-                    if payment_val > 0:
-                        # Check duplicate logic could be tricky for payments as Ref is not unique
-                        # We will try to avoid exact duplicates (same date, same ref, same amount)
-                        if not CustomerPayment.objects.filter(
-                            customer=customer, 
-                            reference_number=ref, 
-                            amount=Decimal(payment_val),
-                            payment_date=txn_date
-                        ).exists():
-                            CustomerPayment.objects.create(
-                                customer=customer,
-                                amount=Decimal(payment_val),
-                                payment_date=txn_date,
-                                reference_number=ref,
-                                notes=desc,
-                                recorded_by=request.user
-                            )
-                            count_payments += 1
-                            
-            messages.success(request, f"Imported {count_charges} charges and {count_payments} payments.")
-            
-        except Exception as e:
-            messages.error(request, f"Error processing file: {e}")
-            
-        return redirect('inventory:customer_detail', pk=pk)
-
-    return render(request, 'inventory/ledger_import.html', {'customer': customer})
 
 # --- BILLING STATEMENT EXPORT (Word, Excel, PDF, CSV) ---
 
@@ -1426,7 +1436,7 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_stocktransaction'
     
     def get_queryset(self):
-        qs = POSSale.objects.select_related('cashier', 'customer').order_by('-timestamp')
+        qs = POSSale.objects.filter(customer__name="Walk-in Customer").select_related('cashier', 'customer').order_by('-timestamp')
         
         txn_type = self.request.GET.get('type')
         if txn_type == 'REC':
@@ -2072,7 +2082,34 @@ def product_toggle_status(request, slug):
 
 def process_history_records(history_records):
     """Helper to calculate deltas and action labels for history records."""
-    for record in history_records:
+    # Eagerly load the records to work with a list
+    records_on_page = list(history_records)
+    if not records_on_page:
+        return
+
+    # --- OPTIMIZATION: Pre-fetch all previous records in bulk ---
+    # 1. Get all unique product IDs from the current page of history
+    product_ids = {r.id for r in records_on_page}
+    
+    # 2. Fetch all historical records for these products
+    HistoryModel = records_on_page[0].__class__
+    all_history_for_products = HistoryModel.objects.filter(
+        id__in=product_ids
+    ).order_by('id', 'history_date') # Order is crucial
+
+    # 3. Create a map of {history_id: previous_record_object}
+    prev_record_map = {}
+    last_record_for_product = {}
+    for record in all_history_for_products:
+        product_id = record.id
+        if product_id in last_record_for_product:
+            # The current record's predecessor is the last one we saw for this product
+            prev_record_map[record.history_id] = last_record_for_product[product_id]
+        # Store the current record as the "last seen" for the next iteration
+        last_record_for_product[product_id] = record
+    # --- END OPTIMIZATION ---
+
+    for record in records_on_page:
         record.change_summary_html = "No details available."
         record.action_label = "Update"
         record.badge_class = "bg-secondary-subtle text-secondary border border-secondary"
@@ -2081,40 +2118,31 @@ def process_history_records(history_records):
             record.action_label = "Created"
             record.badge_class = "bg-success-subtle text-success border border-success"
             record.change_summary_html = "Initial product creation."
-        
         elif record.history_type == '-':
             record.action_label = "Deleted"
             record.badge_class = "bg-danger-subtle text-danger border border-danger"
             record.change_summary_html = "Product deleted."
-        
         elif record.history_type == '~':
-            if record.prev_record:
-                delta = record.diff_against(record.prev_record)
+            # Use the pre-fetched previous record instead of hitting the DB again
+            prev_record = prev_record_map.get(record.history_id)
+            
+            if prev_record:
+                delta = record.diff_against(prev_record)
                 changes = []
                 affected_fields = []
                 
                 for change in delta.changes:
                     field = change.field
-                    old = change.old
-                    new = change.new
-                    
-                    if field == 'price':
-                        changes.append(f"<strong>Price:</strong> {old} &rarr; {new}")
-                        affected_fields.append("Price")
-                    elif field == 'quantity':
-                        changes.append(f"<strong>Stock:</strong> {old} &rarr; {new}")
-                        affected_fields.append("Stock")
-                    elif field == 'status':
-                        changes.append(f"<strong>Status:</strong> {old} &rarr; {new}")
-                        affected_fields.append("Status")
-                    elif field == 'category':
-                        changes.append(f"<strong>Category</strong> updated")
-                        affected_fields.append("Category")
-                    elif field in ['slug', 'date_updated']:
+                    if field in ['slug', 'date_updated']:
                         continue
-                    else:
-                        changes.append(f"<strong>{field.replace('_', ' ').title()}:</strong> {old} &rarr; {new}")
-                        affected_fields.append("Details")
+                    
+                    changes.append(f"<strong>{field.replace('_', ' ').title()}:</strong> {change.old} &rarr; {change.new}")
+                    
+                    if field == 'price': affected_fields.append("Price")
+                    elif field == 'quantity': affected_fields.append("Stock")
+                    elif field == 'status': affected_fields.append("Status")
+                    elif field == 'category': affected_fields.append("Category")
+                    else: affected_fields.append("Details")
                 
                 record.change_summary_html = "<br>".join(changes) if changes else "No specific field changes detected."
                 
@@ -2188,30 +2216,7 @@ class ProductHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListVi
             # Handle Action Filtering
             action = form.cleaned_data.get('action')
             if action:
-                if action in ['+', '-', '~']:
-                    queryset = queryset.filter(history_type=action)
-                elif action in ['STOCK', 'STATUS', 'DETAILS', 'PRICE']:
-                    # 1. Filter for updates in DB first
-                    queryset = queryset.filter(history_type='~')
-                    
-                    # 2. Filter by specific change in Python
-                    filtered_list = []
-                    for record in queryset:
-                        if record.prev_record:
-                            delta = record.diff_against(record.prev_record)
-                            changed = delta.changed_fields
-                            
-                            if action == 'STOCK' and 'quantity' in changed:
-                                filtered_list.append(record)
-                            elif action == 'STATUS' and 'status' in changed:
-                                filtered_list.append(record)
-                            elif action == 'PRICE' and 'price' in changed:
-                                filtered_list.append(record)
-                            elif action == 'DETAILS':
-                                # Check if fields OTHER than the main ones changed
-                                if any(f for f in changed if f not in ['quantity', 'status', 'price', 'slug', 'date_updated']):
-                                    filtered_list.append(record)
-                    return filtered_list
+                queryset = queryset.filter(history_type=action)
 
         return queryset
         

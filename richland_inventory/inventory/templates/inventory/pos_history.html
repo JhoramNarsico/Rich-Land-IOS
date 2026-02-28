@@ -26,7 +26,7 @@
                 </div>
                 <div class="input-group">
                     <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search Receipt ID, Customer, Cashier, or Amount..." value="{{ q }}">
+                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search Receipt ID, Cashier, or Amount..." value="{{ q }}">
                     <button class="btn btn-primary" type="submit">Search</button>
                 </div>
                 {% if q or type %}
@@ -43,7 +43,6 @@
                     <tr>
                         <th class="ps-4">Receipt ID</th>
                         <th>Date & Time</th>
-                        <th>Customer</th>
                         <th>Cashier</th>
                         <th class="text-center">Method</th>
                         <th class="text-end">Total Amount</th>
@@ -60,7 +59,6 @@
                         <td>
                             {{ sale.timestamp|date:"M d, Y" }} <small class="text-muted">{{ sale.timestamp|date:"h:i A" }}</small>
                         </td>
-                        <td>{{ sale.customer.name|default:"Walk-in" }}</td>
                         <td>{{ sale.cashier.username }}</td>
                         <td class="text-center">
                             {% if sale.payment_method == 'CASH' %}
@@ -90,7 +88,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center py-5 text-muted">No sales history found.</td>
+                        <td colspan="7" class="text-center py-5 text-muted">No sales history found.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

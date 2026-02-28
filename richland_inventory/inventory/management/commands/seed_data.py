@@ -258,7 +258,11 @@ class Command(BaseCommand):
 
                 is_walk_in = random.random() < 0.4
                 customer = walk_in_customer if is_walk_in else random.choice(customer_objs[:-1])
-                payment_method = 'CASH' if is_walk_in else random.choice(['CASH', 'CREDIT', 'CARD'])
+                
+                if is_walk_in:
+                    payment_method = random.choice(['CASH', 'CASH', 'GCASH', 'BANK', 'CARD'])
+                else:
+                    payment_method = random.choice(['CASH', 'CREDIT', 'CREDIT', 'CARD', 'GCASH', 'BANK'])
 
                 sale_record = POSSale.objects.create(
                     receipt_id=f"REC-{uuid.uuid4().hex[:8].upper()}",
@@ -288,7 +292,7 @@ class Command(BaseCommand):
 
                 if total_cost > 0:
                     sale_record.total_amount = total_cost
-                    if payment_method == 'CASH': sale_record.amount_paid = total_cost
+                    if payment_method != 'CREDIT': sale_record.amount_paid = total_cost
                     sale_record.save()
                     current_revenue += total_cost
                 else:
