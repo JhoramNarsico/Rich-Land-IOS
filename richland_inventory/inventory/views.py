@@ -90,23 +90,30 @@ def hydraulic_sow_create(request, pk):
             notes=request.POST.get('notes', '')
         )
 
-        if cost_decimal > 0 and request.POST.get('charge_account'):
-            # Create Ledger Entry (POSSale)
-            receipt_id = sow.sow_id
-            POSSale.objects.create(
-                receipt_id=receipt_id,
-                customer=customer,
-                cashier=request.user,
-                payment_method='CREDIT',
-                total_amount=cost_decimal,
-                amount_paid=0,
-                change_given=0,
-                notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
-            )
-            messages.success(request, f"Hydraulic SOW saved. Receipt generated.")
-            return redirect('inventory:pos_receipt_detail', receipt_id=receipt_id)
-        else:
-            messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
+        if cost_decimal > 0:
+            charge_account = request.POST.get('charge_account')
+            
+            # For Walk-in Customers, always generate a receipt (Cash default) if there is a cost.
+            # For named customers, only generate if charged (Credit) to allow for Quotes.
+            if charge_account or customer.name == "Walk-in Customer":
+                payment_method = 'CREDIT' if charge_account else 'CASH'
+                amount_paid = 0 if charge_account else cost_decimal
+
+                receipt_id = sow.sow_id
+                POSSale.objects.create(
+                    receipt_id=receipt_id,
+                    customer=customer,
+                    cashier=request.user,
+                    payment_method=payment_method,
+                    total_amount=cost_decimal,
+                    amount_paid=amount_paid,
+                    change_given=0,
+                    notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
+                )
+                messages.success(request, f"Hydraulic SOW saved. Receipt generated.")
+                return redirect('inventory:pos_receipt_detail', receipt_id=receipt_id)
+
+        messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
             
         if next_url:
             return redirect(next_url)
@@ -165,8 +172,19 @@ def hydraulic_sow_update(request, pk, sow_pk):
                 messages.success(request, f"SOW updated. Associated charge was adjusted to ₱{cost_decimal:,.2f}.")
             else:
                 messages.success(request, "SOW updated. No changes to the associated charge.")
-        elif charge_to_account and cost_decimal > 0:
-            POSSale.objects.create(receipt_id=sow.sow_id, customer=customer, cashier=request.user, payment_method='CREDIT', total_amount=cost_decimal, notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})")
+        elif (charge_to_account or customer.name == "Walk-in Customer") and cost_decimal > 0:
+            payment_method = 'CREDIT' if charge_to_account else 'CASH'
+            amount_paid = 0 if charge_to_account else cost_decimal
+            
+            POSSale.objects.create(
+                receipt_id=sow.sow_id, 
+                customer=customer, 
+                cashier=request.user, 
+                payment_method=payment_method, 
+                total_amount=cost_decimal, 
+                amount_paid=amount_paid,
+                notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
+            )
             messages.success(request, f"SOW updated and a new charge of ₱{cost_decimal:,.2f} was added to the account.")
         else:
             messages.success(request, "Hydraulic SOW updated successfully.")
