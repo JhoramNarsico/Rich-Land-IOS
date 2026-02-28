@@ -54,8 +54,6 @@ urlpatterns = [
     
      # --- CUSTOMER & BILLING ---
     path('customers/', views.CustomerListView.as_view(), name='customer_list'),
-    path('customers/create/', views.CustomerCreateView.as_view(), name='customer_create'),
-    path('customers/import/', views.import_customers, name='customer_import'),
     path('customers/<int:pk>/import-ledger/', views.import_ledger_entries, name='customer_ledger_import'),
     path('customers/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),
     path('customers/<int:pk>/update/', views.CustomerUpdateView.as_view(), name='customer_update'),

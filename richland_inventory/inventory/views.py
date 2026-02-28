@@ -585,18 +585,6 @@ class CustomerListView(LoginRequiredMixin, ListView):
         messages.error(self.request, "Error generating export.")
         return redirect('inventory:customer_list')
 
-class CustomerCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
-    model = Customer
-    form_class = CustomerForm
-    template_name = 'inventory/customer_form.html'
-    success_url = reverse_lazy('inventory:customer_list')
-    success_message = "Customer profile for '%(name)s' created successfully."
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['page_title'] = "Add New Customer"
-        return context
-
 @login_required
 @require_POST
 def customer_payment(request, pk):
@@ -631,53 +619,6 @@ def customer_payment(request, pk):
         error_str = " ".join([f"{field.replace('_', ' ').title()}: {error}" for field, err_list in form.errors.items() for error in err_list])
         messages.error(request, f"Error recording payment. {error_str if error_str else 'Please check your input.'}")
     return redirect('inventory:customer_detail', pk=pk)
-
-@login_required
-def import_customers(request):
-    """Simple CSV Import for Customers"""
-    if request.method == "POST" and request.FILES.get('csv_file'):
-        csv_file = request.FILES['csv_file']
-        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
-            messages.error(request, "Please upload a CSV or Excel file.")
-            return redirect('inventory:customer_list')
-
-        try:
-            data = []
-            if csv_file.name.endswith('.csv'):
-                decoded_file = csv_file.read().decode('utf-8').splitlines()
-                reader = csv.DictReader(decoded_file)
-                data = list(reader)
-            elif csv_file.name.endswith('.xlsx'):
-                wb = load_workbook(csv_file, data_only=True)
-                ws = wb.active
-                rows = list(ws.iter_rows(values_only=True))
-                if rows:
-                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
-                    for row in rows[1:]:
-                        row_dict = {headers[i]: (str(val) if val is not None else '') for i, val in enumerate(row) if i < len(headers)}
-                        data.append(row_dict)
-
-            count = 0
-            for row in data:
-                # Expects columns: name, email, phone, address
-                if row.get('name'):
-                    Customer.objects.update_or_create(
-                        name=row.get('name'),
-                        defaults={
-                            'email': row.get('email', ''),
-                            'phone': row.get('phone', ''),
-                            'address': row.get('address', ''),
-                            'tax_id': row.get('tax_id', ''),
-                        }
-                    )
-                    count += 1
-            messages.success(request, f"Successfully imported/updated {count} customers.")
-        except Exception as e:
-            messages.error(request, f"Error processing file: {e}")
-            
-        return redirect('inventory:customer_list')
-        
-    return render(request, 'inventory/customer_import.html')
 
 @login_required
 def import_ledger_entries(request, pk):
@@ -1353,6 +1294,10 @@ def pos_checkout(request):
             except Customer.DoesNotExist:
                 pass
 
+        # Default to Walk-in Customer if no specific customer is selected
+        if not customer:
+            customer = get_walkin_customer()
+
         # Calculate Total Cost first to validate Credit Limit
         total_calculated_cost = Decimal('0')
         item_objects = []
@@ -1454,7 +1399,9 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_stocktransaction'
     
     def get_queryset(self):
-        qs = POSSale.objects.filter(customer__name="Walk-in Customer").select_related('cashier', 'customer').order_by('-timestamp')
+        qs = POSSale.objects.filter(
+            Q(customer__name="Walk-in Customer") | Q(customer__isnull=True)
+        ).select_related('cashier', 'customer').order_by('-timestamp')
         
         txn_type = self.request.GET.get('type')
         if txn_type == 'REC':
