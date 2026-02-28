@@ -1306,10 +1306,22 @@ def pos_checkout(request):
         for item in items:
             product = Product.objects.get(pk=item.get('id'))
             qty = int(item.get('qty'))
+            
+            # Allow for custom price override (requested lower price)
+            custom_price = item.get('price')
+            if custom_price is not None:
+                try:
+                    sell_price = Decimal(str(custom_price))
+                except (ValueError, TypeError):
+                    sell_price = product.price
+            else:
+                sell_price = product.price
+
             if product.quantity < qty:
                 raise ValueError(f"Insufficient stock for {product.name}")
-            total_calculated_cost += (product.price * qty)
-            item_objects.append({'product': product, 'qty': qty})
+            
+            total_calculated_cost += (sell_price * qty)
+            item_objects.append({'product': product, 'qty': qty, 'price': sell_price})
 
         # Credit Validation
         if payment_method == 'CREDIT':
@@ -1317,6 +1329,7 @@ def pos_checkout(request):
                  return JsonResponse({'status': 'error', 'message': 'Customer required for credit sales'}, status=400)
             
             current_balance = customer.get_balance()
+
             if customer.credit_limit > 0 and (current_balance + total_calculated_cost) > customer.credit_limit:
                  return JsonResponse({'status': 'error', 'message': f'Credit limit exceeded. Available: {customer.credit_limit - current_balance}'}, status=400)
             
@@ -1346,13 +1359,13 @@ def pos_checkout(request):
             for item_obj in item_objects:
                 product = item_obj['product']
                 sell_qty = item_obj['qty']
+                sell_price = item_obj['price']
                 
                 # Lock row
                 product = Product.objects.select_for_update().get(pk=product.id)
                 product.quantity -= sell_qty
                 product.save()
                 
-                sell_price = product.price
                 line_total = sell_qty * sell_price
                 
                 StockTransaction.objects.create(

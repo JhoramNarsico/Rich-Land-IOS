@@ -335,12 +335,22 @@
             const lineTotal = item.price * item.qty;
             currentTotal += lineTotal;
 
+            let priceDisplay = `₱${item.price.toLocaleString()}`;
+            if (item.original_price && item.price !== item.original_price) {
+                priceDisplay = `<small class="text-muted text-decoration-line-through me-1">₱${item.original_price.toLocaleString()}</small> <span class="text-danger fw-bold">₱${item.price.toLocaleString()}</span>`;
+            }
+
             const row = document.createElement('div');
             row.className = 'cart-item';
             row.innerHTML = `
                 <div class="cart-item-details">
                     <div class="cart-item-name">${item.name}</div>
-                    <div class="cart-item-price">₱${item.price.toLocaleString()}</div>
+                    <div class="cart-item-price">
+                        ${priceDisplay}
+                        <button class="btn btn-link btn-sm p-0 ms-2 text-decoration-none text-muted" onclick="updatePrice(${index})" title="Request Discount / Adjust Price">
+                            <i class="fas fa-tag fa-xs"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="cart-item-actions">
                     <button class="qty-btn" onclick="updateQty(${index}, -1)"><i class="fas fa-minus fa-xs"></i></button>
@@ -374,6 +384,7 @@
                 id: product.id,
                 name: product.name,
                 price: parseFloat(product.price),
+                original_price: parseFloat(product.price),
                 qty: 1,
                 max_stock: product.quantity
             });
@@ -396,6 +407,21 @@
             item.qty = newQty;
         }
         renderCart();
+    }
+
+    function updatePrice(index) {
+        const item = cart[index];
+        const newPrice = prompt(`Enter adjusted price for ${item.name}:`, item.price);
+        
+        if (newPrice !== null) {
+            const parsed = parseFloat(newPrice);
+            if (!isNaN(parsed) && parsed >= 0) {
+                item.price = parsed;
+                renderCart();
+            } else {
+                alert("Invalid price entered.");
+            }
+        }
     }
 
     function clearCart() {

@@ -1,6 +1,6 @@
 import random
 import uuid
-from datetime import timedelta
+from datetime import timedelta, datetime
 from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -13,12 +13,11 @@ from inventory.models import (
 )
 
 class Command(BaseCommand):
-    help = 'Populates the database with sample data for testing all features.'
+    help = 'Overhauls database with comprehensive test data for Rich Land System.'
 
     def handle(self, *args, **kwargs):
-        # Clear existing data to prevent duplicates on re-seed
+        self.stdout.write(self.style.WARNING('This will wipe all existing data. Proceeding...'))
         self.clear_data()
-        self.stdout.write("Seeding data...")
 
         # 1. Get or Create Admin User for logs
         user = User.objects.first()
@@ -28,8 +27,9 @@ class Command(BaseCommand):
 
         # 2. Create Product Categories
         categories = [
-            'Engine Parts', 'Tires & Wheels', 'Braking System', 
-            'Fluids & Chemicals', 'Accessories', 'Batteries'
+            'Engine Parts', 'Suspension', 'Braking System', 'Electrical',
+            'Fluids & Chemicals', 'Tires & Wheels', 'Accessories', 'Batteries',
+            'Filters', 'Belts & Hoses'
         ]
         cat_objs = []
         for name in categories:
@@ -42,16 +42,9 @@ class Command(BaseCommand):
             {'name': 'Global Auto Parts', 'contact': 'John Smith', 'email': 'john@globalauto.com', 'phone': '0917-123-4567'},
             {'name': 'Manila Rubber Corp', 'contact': 'Maria Cruz', 'email': 'maria@mrc.ph', 'phone': '0918-555-0101'},
             {'name': 'Lubricants Express', 'contact': 'David Lee', 'email': 'sales@lubex.com', 'phone': '02-8888-1234'},
+            {'name': 'Davao Tires Inc.', 'contact': 'Roberto Go', 'email': 'rgo@davaotires.com', 'phone': '0922-111-2222'},
+            {'name': 'Cebu Batteries', 'contact': 'Ana Lim', 'email': 'ana@cebubatt.com', 'phone': '032-231-4545'},
         ]
-
-        # Generate 100 additional suppliers
-        for i in range(1, 101):
-            suppliers_data.append({
-                'name': f'Supplier {i} - Auto Supply',
-                'contact': f'Agent {i}',
-                'email': f'supplier{i}@example.com',
-                'phone': f'09{random.randint(10, 99)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}'
-            })
 
         sup_objs = []
         for data in suppliers_data:
@@ -65,16 +58,24 @@ class Command(BaseCommand):
         
         # 4. Create Customers
         self.stdout.write("Creating customers...")
+        
+        # Ensure Walk-in Customer exists first
+        walk_in_customer, _ = Customer.objects.get_or_create(
+            name="Walk-in Customer", 
+            defaults={'address': 'Store Counter', 'credit_limit': 0}
+        )
+
         customers_data = [
-            {'name': 'John Doe Garage', 'email': 'johndoe@example.com', 'phone': '0917-111-2222', 'address': '123 Main St, QC', 'credit_limit': 50000},
-            {'name': 'Maria\'s Auto Repair', 'email': 'maria@repair.com', 'phone': '0918-333-4444', 'address': '456 Service Rd, Pasig', 'credit_limit': 25000},
-            {'name': 'Walk-in Customer', 'address': 'Store Counter', 'credit_limit': 0},
+            {'name': 'John Doe Garage', 'email': 'johndoe@example.com', 'phone': '0917-111-2222', 'address': '123 Main St, QC', 'credit_limit': 100000},
+            {'name': 'Maria\'s Auto Repair', 'email': 'maria@repair.com', 'phone': '0918-333-4444', 'address': '456 Service Rd, Pasig', 'credit_limit': 50000},
+            {'name': 'Speedy Transport', 'email': 'ops@speedy.ph', 'phone': '0919-555-6666', 'address': 'Cagayan de Oro City', 'credit_limit': 200000},
+            {'name': 'Lito Mechanic', 'email': 'lito@yahoo.com', 'phone': '0920-888-9999', 'address': 'Lapasan, CDO', 'credit_limit': 10000},
         ]
 
-        # Generate 100 additional customers
-        for i in range(1, 101):
+        # Generate 20 additional random customers
+        for i in range(1, 21):
             customers_data.append({
-                'name': f'Customer {i} - Auto Shop',
+                'name': f'Auto Shop {i}',
                 'email': f'customer{i}@example.com',
                 'phone': f'09{random.randint(10, 99)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}',
                 'address': f'{random.randint(1, 999)} Street Name, City',
@@ -86,49 +87,113 @@ class Command(BaseCommand):
             cust, created = Customer.objects.get_or_create(name=data['name'], defaults=data)
             customer_objs.append(cust)
         self.stdout.write(f"Created {len(customer_objs)} customers.")
-        walk_in_customer = Customer.objects.get(name="Walk-in Customer")
         
-        # 4. Create Products
-        products_data = [
-            {'name': 'Motolite Gold Battery', 'sku': 'BAT-001', 'cat': 'Batteries', 'price': 4500.00, 'qty': 200},
-            {'name': 'Shell Helix Ultra 5W-40', 'sku': 'OIL-SH-5W40', 'cat': 'Fluids & Chemicals', 'price': 2800.00, 'qty': 500},
-            {'name': 'Brembo Brake Pads (Front)', 'sku': 'BRK-PAD-F', 'cat': 'Braking System', 'price': 3500.00, 'qty': 150},
-            {'name': 'Michelin Pilot Sport 4', 'sku': 'TIRE-MICH-18', 'cat': 'Tires & Wheels', 'price': 12500.00, 'qty': 100},
-            {'name': 'Spark Plug (NGK)', 'sku': 'SPK-NGK-01', 'cat': 'Engine Parts', 'price': 250.00, 'qty': 2000},
-            {'name': 'Car Mat Set (Universal)', 'sku': 'ACC-MAT-UNI', 'cat': 'Accessories', 'price': 1200.00, 'qty': 120},
-            {'name': 'Oil Filter (Bosch)', 'sku': 'FLT-OIL-B01', 'cat': 'Engine Parts', 'price': 450.00, 'qty': 450},
-            {'name': 'Brake Fluid DOT4', 'sku': 'FLD-BRK-DOT4', 'cat': 'Fluids & Chemicals', 'price': 350.00, 'qty': 600},
+        # 5. Create Products (More comprehensive list)
+        # Format: Name, SKU, Category, Price, Initial Stock Target
+        raw_products = [
+            ('Motolite Gold Battery 2SM', 'BAT-GOLD-2SM', 'Batteries', 6500.00, 50),
+            ('Motolite Enduro Battery 1SM', 'BAT-END-1SM', 'Batteries', 4500.00, 40),
+            ('Shell Helix Ultra 5W-40 (4L)', 'OIL-SH-5W40-4L', 'Fluids & Chemicals', 2800.00, 100),
+            ('Shell Helix HX7 10W-40 (1L)', 'OIL-SH-HX7-1L', 'Fluids & Chemicals', 450.00, 200),
+            ('Brembo Brake Pads (Vios Front)', 'BRK-PAD-VIOS-F', 'Braking System', 3500.00, 30),
+            ('Bendix Brake Shoe (Rear)', 'BRK-SHOE-GEN', 'Braking System', 1800.00, 40),
+            ('Michelin Pilot Sport 4 225/45/R18', 'TIRE-MICH-18', 'Tires & Wheels', 12500.00, 20),
+            ('Bridgestone Potenza 195/55/R15', 'TIRE-BRIDGE-15', 'Tires & Wheels', 4500.00, 40),
+            ('NGK Spark Plug (Iridium)', 'SPK-NGK-IR', 'Engine Parts', 450.00, 500),
+            ('Denso Spark Plug (Standard)', 'SPK-DENSO-STD', 'Engine Parts', 120.00, 500),
+            ('Bosch Oil Filter (Toyota)', 'FLT-OIL-TOY', 'Filters', 350.00, 150),
+            ('Vic Oil Filter (Mitsubishi)', 'FLT-OIL-MIT', 'Filters', 450.00, 150),
+            ('Air Filter (Vios/Yaris)', 'FLT-AIR-VIOS', 'Filters', 650.00, 80),
+            ('Cabin Filter (Carbon)', 'FLT-CAB-CARB', 'Filters', 850.00, 60),
+            ('Fan Belt 4PK1210', 'BLT-4PK1210', 'Belts & Hoses', 450.00, 50),
+            ('Timing Belt Kit (Innova)', 'BLT-TIM-INN', 'Engine Parts', 4500.00, 15),
+            ('KYB Shock Absorber (Front)', 'SUS-KYB-FR', 'Suspension', 2800.00, 40),
+            ('KYB Shock Absorber (Rear)', 'SUS-KYB-RR', 'Suspension', 2200.00, 40),
+            ('Stabilizer Link', 'SUS-STAB-LNK', 'Suspension', 850.00, 60),
+            ('Headlight Bulb H4 (Osram)', 'EL-BULB-H4', 'Electrical', 350.00, 100),
+            ('LED Headlight Kit H4', 'EL-LED-H4', 'Electrical', 2500.00, 20),
+            ('Car Horn (Bosch Europa)', 'ACC-HORN-EUR', 'Accessories', 3500.00, 25),
+            ('Wiper Blade 24" (Bosch)', 'ACC-WIP-24', 'Accessories', 650.00, 50),
+            ('Wiper Blade 16" (Bosch)', 'ACC-WIP-16', 'Accessories', 450.00, 50),
+            ('Coolant (Prestone 1L)', 'CHEM-COOL-1L', 'Fluids & Chemicals', 280.00, 120),
+            ('Brake Fluid DOT4 (500ml)', 'CHEM-BRK-DOT4', 'Fluids & Chemicals', 350.00, 100),
+            ('Degreaser Spray', 'CHEM-DEG', 'Fluids & Chemicals', 180.00, 80),
+            ('Microfiber Cloth (3pcs)', 'ACC-CLOTH', 'Accessories', 150.00, 200),
+            ('Steering Wheel Cover', 'ACC-STR-COV', 'Accessories', 500.00, 30),
+            ('Floor Matting (Deep Dish)', 'ACC-MAT-DISH', 'Accessories', 3500.00, 10),
         ]
 
         prod_objs = []
-        for p_data in products_data:
-            cat = Category.objects.get(name=p_data['cat'])
+        for name, sku, cat_name, price, target_qty in raw_products:
+            cat = Category.objects.get(name=cat_name)
             prod, created = Product.objects.get_or_create(
-                sku=p_data['sku'],
+                sku=sku,
                 defaults={
-                    'name': p_data['name'],
+                    'name': name,
                     'category': cat,
-                    'price': p_data['price'],
-                    'quantity': p_data['qty'], # Initial Qty
+                    'price': Decimal(price),
+                    'quantity': 0, # Start at 0, populate via POs
                     'reorder_level': 10,
                     'status': 'ACTIVE'
                 }
             )
             prod_objs.append(prod)
+
+        self.stdout.write(f"Created {len(prod_objs)} products.")
+
+        # 6. Populate Stock via Purchase Orders (To create Audit Trail)
+        self.stdout.write("Populating stock via Purchase Orders...")
+        
+        # Create a "Received" PO for every product to establish base stock
+        # We split this into a few POs to look realistic
+        for i in range(5):
+            supplier = random.choice(sup_objs)
+            po = PurchaseOrder.objects.create(
+                supplier=supplier,
+                status='RECEIVED',
+                order_date=timezone.now() - timedelta(days=random.randint(60, 365))
+            )
             
-            # Create Initial Stock Transaction if new
-            if created:
+            # Add 5-10 random products to this PO
+            po_products = random.sample(prod_objs, k=random.randint(5, 10))
+            
+            for prod in po_products:
+                # Find the target qty from our raw list
+                target_qty = next(item[4] for item in raw_products if item[1] == prod.sku)
+                qty = int(target_qty * random.uniform(0.8, 1.2)) # Vary slightly
+                cost_price = prod.price * Decimal('0.7') # 30% margin
+                
+                PurchaseOrderItem.objects.create(
+                    purchase_order=po,
+                    product=prod,
+                    quantity=qty,
+                    price=cost_price
+                )
+                
+                # Create Stock Transaction
                 StockTransaction.objects.create(
                     product=prod,
                     transaction_type='IN',
-                    transaction_reason='INITIAL',
-                    quantity=p_data['qty'],
+                    transaction_reason='PO',
+                    quantity=qty,
                     user=user,
-                    notes="Initial system setup"
+                    notes=f"Received from PO {po.order_id}",
+                    timestamp=po.order_date
                 )
-        self.stdout.write(f"Created {len(prod_objs)} products.")
+                
+                prod.quantity += qty
+                prod.last_purchase_date = po.order_date
+                prod.save()
 
-        # 5. Create Expense Categories and Expenses
+        # Create some PENDING and COMPLETED POs
+        for _ in range(5):
+            PurchaseOrder.objects.create(
+                supplier=random.choice(sup_objs),
+                status=random.choice(['PENDING', 'COMPLETED']),
+                order_date=timezone.now() - timedelta(days=random.randint(1, 10))
+            )
+
+        # 7. Create Expenses
         self.stdout.write("Creating expense categories and expenses...")
         exp_cats_data = ['Rent', 'Utilities', 'Salaries', 'Supplies', 'Marketing']
         exp_cat_objs = []
@@ -136,8 +201,9 @@ class Command(BaseCommand):
             cat, _ = ExpenseCategory.objects.get_or_create(name=name)
             exp_cat_objs.append(cat)
         
-        for _ in range(200): # Create 200 random expenses over 2 years
-            random_days = random.randint(0, 730)
+        # Generate expenses for last 12 months
+        for _ in range(150): 
+            random_days = random.randint(0, 365)
             exp_date = timezone.now().date() - timedelta(days=random_days)
             Expense.objects.create(
                 category=random.choice(exp_cat_objs),
@@ -146,15 +212,17 @@ class Command(BaseCommand):
                 expense_date=exp_date,
                 recorded_by=user
             )
-        self.stdout.write("Created 200 random expenses over 2 years.")
 
-        # 6. Create Hydraulic SOWs
+        # 8. Create Hydraulic SOWs (Mixed: Quotes, Paid, Charged)
         self.stdout.write("Creating Hydraulic SOWs...")
-        for i in range(30):
-            random_days = random.randint(0, 730)
+        for i in range(20):
+            random_days = random.randint(0, 90)
             sow_date = timezone.now() - timedelta(days=random_days)
             
-            cust = random.choice(customer_objs)
+            # Mix of Walk-in and Named
+            is_walkin = random.random() < 0.3
+            cust = walk_in_customer if is_walkin else random.choice(customer_objs)
+            
             sow = HydraulicSow.objects.create(
                 customer=cust, created_by=user, hose_type=f"Type {random.choice(['A', 'B', 'C'])}",
                 diameter=f"1/{random.randint(2,8)}", application=f"Excavator Arm {i+1}",
@@ -162,89 +230,44 @@ class Command(BaseCommand):
             )
             sow.date_created = sow_date
             sow.save()
-            POSSale.objects.create(receipt_id=sow.sow_id, customer=cust, cashier=user, payment_method='CREDIT', total_amount=sow.cost, notes=f"Hydraulic Job #{sow.id}", timestamp=sow_date)
-        self.stdout.write("Created 30 Hydraulic SOWs with charges over 2 years.")
 
-        # PO #1: PENDING (In Transit)
-        po1 = PurchaseOrder.objects.create(supplier=sup_objs[0], status='PENDING')
-        PurchaseOrderItem.objects.create(purchase_order=po1, product=prod_objs[0], quantity=10, price=4000.00)
-        PurchaseOrderItem.objects.create(purchase_order=po1, product=prod_objs[2], quantity=5, price=3000.00)
-        
-        # PO #2: COMPLETED (Arrived - Ready to Receive)
-        po2 = PurchaseOrder.objects.create(supplier=sup_objs[1], status='COMPLETED')
-        PurchaseOrderItem.objects.create(purchase_order=po2, product=prod_objs[3], quantity=4, price=11000.00)
-
-        # PO #3: RECEIVED (Stock Added)
-        po3 = PurchaseOrder.objects.create(supplier=sup_objs[2], status='RECEIVED')
-        item = PurchaseOrderItem.objects.create(purchase_order=po3, product=prod_objs[1], quantity=20, price=2400.00)
-        # Manually create the log since we bypassed the view logic
-        StockTransaction.objects.create(
-            product=prod_objs[1],
-            transaction_type='IN',
-            transaction_reason='PO',
-            quantity=20,
-            user=user,
-            notes=f"Received from Purchase Order PO #{po3.id}",
-            timestamp=timezone.now() - timedelta(days=5)
-        )
-        self.stdout.write("Created 3 Purchase Orders (Pending, Arrived, Received).")
-
-        # Create 100 additional Purchase Orders with variety
-        self.stdout.write("Creating 100 additional Purchase Orders...")
-        for i in range(100):
-            supplier = random.choice(sup_objs)
-            status = random.choice(['PENDING', 'COMPLETED', 'RECEIVED', 'CANCELED'])
-            order_date = timezone.now() - timedelta(days=random.randint(1, 730))
-
-            po = PurchaseOrder.objects.create(
-                supplier=supplier,
-                status=status
-            )
-            po.order_date = order_date
-            po.save()
-
-            num_items = random.randint(1, 5)
-            for _ in range(num_items):
-                product = random.choice(prod_objs)
-                quantity = random.randint(5, 50)
-                purchase_price = Decimal(str(product.price)) * Decimal(random.uniform(0.6, 0.8))
-
-                PurchaseOrderItem.objects.create(
-                    purchase_order=po,
-                    product=product,
-                    quantity=quantity,
-                    price=purchase_price.quantize(Decimal('0.01'))
+            # 70% chance it's a charged job (Receipt generated)
+            if random.random() < 0.7:
+                # If walk-in, it's CASH. If named, could be CREDIT or CASH.
+                if is_walkin:
+                    pm = 'CASH'
+                    paid = sow.cost
+                else:
+                    pm = random.choice(['CREDIT', 'CASH'])
+                    paid = 0 if pm == 'CREDIT' else sow.cost
+                
+                POSSale.objects.create(
+                    receipt_id=sow.sow_id, 
+                    customer=cust, 
+                    cashier=user, 
+                    payment_method=pm, 
+                    total_amount=sow.cost, 
+                    amount_paid=paid,
+                    notes=f"Hydraulic Job #{sow.id}", 
+                    timestamp=sow_date
                 )
 
-                if status == 'RECEIVED':
-                    product.quantity += quantity
-                    product.last_purchase_date = order_date
-                    product.save()
-                    st = StockTransaction.objects.create(
-                        product=product, transaction_type='IN', transaction_reason='PO',
-                        quantity=quantity, user=user, notes=f"Received from Purchase Order {po.order_id}"
-                    )
-                    st.timestamp = order_date
-                    st.save()
-        self.stdout.write("Created 100 additional Purchase Orders.")
-
-        # 7. Generate POS History
-        self.stdout.write("Generating POS transaction history (Target: 2.5M - 3M per month)...")
+        # 9. Generate POS History (The heavy lifting)
+        self.stdout.write("Generating POS transaction history...")
         end_date = timezone.now()
-        # Generate for the last 12 months
-        start_date = end_date - timedelta(days=365)
+        start_date = end_date - timedelta(days=180) # Last 6 months
         start_date = start_date.replace(day=1)
         current_dt = start_date
 
         while current_dt < end_date:
-            # Calculate month end
             if current_dt.month == 12:
                 next_month = current_dt.replace(year=current_dt.year+1, month=1, day=1)
             else:
                 next_month = current_dt.replace(month=current_dt.month+1, day=1)
             
             days_in_month = (next_month - current_dt).days
-            target_revenue = Decimal(random.uniform(2500000, 3000000))
+            # Target ~500k - 1M per month for realistic data
+            target_revenue = Decimal(random.uniform(500000, 1000000))
             current_revenue = Decimal('0')
             
             self.stdout.write(f"  - Generating {current_dt.strftime('%B %Y')}: Target PHP {target_revenue:,.2f}")
@@ -256,8 +279,8 @@ class Command(BaseCommand):
                 txn_date = current_dt + timedelta(days=day_offset, hours=hour, minutes=minute)
                 if txn_date > end_date: txn_date = end_date
 
-                is_walk_in = random.random() < 0.4
-                customer = walk_in_customer if is_walk_in else random.choice(customer_objs[:-1])
+                is_walk_in = random.random() < 0.5
+                customer = walk_in_customer if is_walk_in else random.choice(customer_objs)
                 
                 if is_walk_in:
                     payment_method = random.choice(['CASH', 'CASH', 'GCASH', 'BANK', 'CARD'])
@@ -271,16 +294,24 @@ class Command(BaseCommand):
                 
                 total_cost = Decimal('0')
                 num_items = random.randint(1, 5)
-                # Weighted selection: favor high-value items (indices 0-3)
-                selected_products = random.choices(prod_objs, weights=[15, 15, 15, 25, 5, 10, 5, 10], k=num_items)
+                selected_products = random.sample(prod_objs, k=num_items)
                 
                 for product in selected_products:
-                    if product.quantity < 20: product.quantity += 100 # Magic restock
+                    # Magic restock if low to prevent negative stock in simulation
+                    if product.quantity < 10: 
+                        product.quantity += 50
+                        product.save()
+                        
                     qty = random.randint(1, 4)
+                    
+                    # Simulate custom price override (5% chance)
+                    selling_price = product.price
+                    if random.random() < 0.05:
+                        selling_price = product.price * Decimal('0.9') # 10% discount
                     
                     st = StockTransaction.objects.create(
                         product=product, pos_sale=sale_record, transaction_type='OUT',
-                        transaction_reason='SALE', quantity=qty, selling_price=product.price,
+                        transaction_reason='SALE', quantity=qty, selling_price=selling_price,
                         user=user, notes=f"POS Sale: {sale_record.receipt_id}"
                     )
                     st.timestamp = txn_date
@@ -288,7 +319,7 @@ class Command(BaseCommand):
                     
                     product.quantity -= qty
                     product.save()
-                    total_cost += (Decimal(str(product.price)) * qty)
+                    total_cost += (selling_price * qty)
 
                 if total_cost > 0:
                     sale_record.total_amount = total_cost
@@ -299,24 +330,27 @@ class Command(BaseCommand):
                     sale_record.delete()
             
             current_dt = next_month
-        self.stdout.write("Generated high-volume POS sales for the last 12 months.")
 
-        # 8. Generate some payments for credit sales
+        # 10. Generate Payments for Credit Sales
         self.stdout.write("Generating customer payments for credit sales...")
         credit_sales = POSSale.objects.filter(payment_method='CREDIT')
         for sale in credit_sales:
-            if random.random() < 0.5:
+            # 60% chance they paid it
+            if random.random() < 0.6:
                 payment_date = sale.timestamp + timedelta(days=random.randint(1, 15))
+                if payment_date > timezone.now(): payment_date = timezone.now()
+                
+                # Full or partial payment
                 payment_amount = sale.total_amount if random.random() < 0.7 else sale.total_amount / 2
+                
                 CustomerPayment.objects.create(
                     customer=sale.customer, sale_paid=sale, amount=payment_amount.quantize(Decimal('0.01')),
                     payment_date=payment_date, recorded_by=user, notes="Seed data payment"
                 )
-        self.stdout.write("Generated random payments.")
 
-        # 9. Generate Returns and Damages
+        # 11. Generate Returns and Damages
         self.stdout.write("Generating returns and damages...")
-        for _ in range(10):
+        for _ in range(20):
             sale_to_return = POSSale.objects.filter(items__isnull=False).order_by('?').first()
             if sale_to_return:
                 item_to_return = sale_to_return.items.order_by('?').first()
@@ -334,7 +368,7 @@ class Command(BaseCommand):
                     item_to_return.product.quantity += 1
                     item_to_return.product.save()
 
-        for _ in range(10):
+        for _ in range(15):
             product = random.choice(prod_objs)
             if product.quantity > 0:
                 with transaction.atomic():
@@ -342,7 +376,7 @@ class Command(BaseCommand):
                     if product_to_damage.quantity > 0:
                         product_to_damage.quantity -= 1
                         product_to_damage.save()
-                        damage_date = timezone.now() - timedelta(days=random.randint(1,730))
+                        damage_date = timezone.now() - timedelta(days=random.randint(1,180))
                         st = StockTransaction.objects.create(
                             product=product_to_damage, transaction_type='OUT', transaction_reason='DAMAGE',
                             quantity=1, user=user,
@@ -350,7 +384,7 @@ class Command(BaseCommand):
                         )
                         st.timestamp = damage_date
                         st.save()
-        self.stdout.write("Generated returns and damages.")
+
         self.stdout.write(self.style.SUCCESS('Successfully seeded database with sample data!'))
 
     def clear_data(self):

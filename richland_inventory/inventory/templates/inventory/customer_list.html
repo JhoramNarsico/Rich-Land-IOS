@@ -109,11 +109,6 @@
                                     ₱{{ customer.balance|floatformat:2|intcomma }}
                                 </span>
                                 <div class="small text-danger mt-1 fw-bold" style="font-size: 0.7rem;">OUTSTANDING</div>
-                            {% elif customer.balance < 0 %}
-                                <span class="badge bg-success-subtle text-success border border-success-subtle rounded-pill px-3">
-                                    -₱{{ customer.balance|floatformat:2|intcomma|cut:"-" }}
-                                </span>
-                                <div class="small text-success mt-1 fw-bold" style="font-size: 0.7rem;">OVERPAYMENT</div>
                             {% else %}
                                 <span class="badge bg-light text-secondary border rounded-pill px-3">
                                     ₱0.00
