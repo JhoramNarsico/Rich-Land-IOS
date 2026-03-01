@@ -417,6 +417,15 @@
             const parsed = parseFloat(newPrice);
             if (!isNaN(parsed) && parsed >= 0) {
                 item.price = parsed;
+
+                // If price was lowered, ask for a reason.
+                if (parsed < item.original_price) {
+                    const reason = prompt("Reason for price reduction (optional):", "");
+                    item.override_reason = reason || "Not provided"; // Store reason in cart item
+                } else {
+                    delete item.override_reason; // Remove reason if price is not lower
+                }
+
                 renderCart();
             } else {
                 alert("Invalid price entered.");

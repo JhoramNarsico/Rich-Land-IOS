@@ -1,0 +1,150 @@
+{% load humanize %}
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Stock Snapshot Report</title>
+    <style>
+        @page {
+            size: a4 portrait;
+            margin: 1cm;
+            margin-top: 3.5cm; 
+            margin-bottom: 2cm;
+            
+            @frame header_frame { 
+                -pdf-frame-content: header_content;
+                left: 30pt; width: 535pt; top: 20pt; height: 100pt;
+            }
+            
+            @frame footer_frame { 
+                -pdf-frame-content: footer_content;
+                left: 30pt; width: 535pt; top: 780pt; height: 20pt;
+            }
+        }
+        
+        body { 
+            font-family: Helvetica, sans-serif; 
+            font-size: 9px; 
+            color: #2c3e50; 
+        }
+        
+        .header-table { width: 100%; border-bottom: 2px solid #2799a5; margin-bottom: 10px; }
+        .company-name { font-size: 16px; font-weight: bold; color: #2c3e50; }
+        .report-title { font-size: 20px; font-weight: bold; color: #2799a5; text-align: right; }
+        .report-meta { font-size: 9px; color: #7f8c8d; text-align: right; line-height: 1.4; margin-top: 5px; }
+
+        /* KPI Styles adapted to match statement theme */
+        .kpi-container {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 10px 0;
+            margin-bottom: 20px;
+        }
+        .kpi-box {
+            border: 1px solid #bdc3c7;
+            background-color: #fdfdfd;
+            width: 33.33%;
+            text-align: center;
+            padding: 8px;
+        }
+        .kpi-box .label {
+            font-size: 8px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .kpi-box .value {
+            font-size: 14px;
+            font-weight: bold;
+            color: #2c3e50;
+            display: block;
+        }
+
+        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.data-table thead { display: table-header-group; }
+        table.data-table th { background-color: #2c3e50; color: #ffffff; padding: 5px; font-weight: bold; border: 1px solid #2c3e50; text-transform: uppercase; font-size: 8px; }
+        table.data-table td { border: 1px solid #bdc3c7; padding: 4px; vertical-align: middle; font-size: 8px; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        
+        .footer { text-align: center; font-size: 8px; color: #7f8c8d; border-top: 1px solid #bdc3c7; padding-top: 5px; }
+    </style>
+</head>
+<body>
+    <!-- HEADER -->
+    <div id="header_content">
+        <table class="header-table">
+            <tr>
+                <td style="vertical-align: bottom; width: 50%;">
+                    <img src="images/logo.png" style="height: 50px; width: auto;" alt="" />
+                    <br/><span class="company-name">Rich Land Auto Supply</span>
+                </td>
+                <td style="vertical-align: bottom; text-align: right; width: 50%;">
+                    <div class="report-title">STOCK SNAPSHOT</div>
+                    <div class="report-meta">
+                        Report Date: <strong>{{ today|date:"F d, Y" }}</strong><br/>
+                        Generated: {% now "h:i A" %}
+                    </div>
+                </td>
+            </tr>
+        </table>
+    </div>
+
+    <div id="footer_content" class="footer">
+        Confidential Report | Page <pdf:pagenumber> of <pdf:pagecount>
+    </div>
+
+    <!-- KPI Section -->
+    <table class="kpi-container">
+        <tr>
+            <td class="kpi-box">
+                <span class="label">Total Inventory Value</span>
+                <span class="value">PHP {{ total_inventory_value|floatformat:2|intcomma }}</span>
+            </td>
+            <td class="kpi-box">
+                <span class="label">Total Number of Items</span>
+                <span class="value">{{ total_items|intcomma }}</span>
+            </td>
+            <td class="kpi-box">
+                <span class="label">Unique Products (SKUs)</span>
+                <span class="value">{{ products|length }}</span>
+            </td>
+        </tr>
+    </table>
+
+    <!-- Main Table -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th style="width: 15%;">SKU</th>
+                <th style="width: 35%;">Product Name</th>
+                <th style="width: 20%;">Category</th>
+                <th style="width: 10%;" class="text-center">On Hand</th>
+                <th style="width: 10%;" class="text-right">Unit Price</th>
+                <th style="width: 10%;" class="text-right">Total Value</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for product in products %}
+            <tr>
+                <td>{{ product.sku }}</td>
+                <td>{{ product.name }}</td>
+                <td>{{ product.category.name|default:"N/A" }}</td>
+                <td class="text-center">{{ product.quantity|intcomma }}</td>
+                <td class="text-right">{{ product.price|floatformat:2|intcomma }}</td>
+                <td class="text-right bold">{{ product.total_value|floatformat:2|intcomma }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-center">No products found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>

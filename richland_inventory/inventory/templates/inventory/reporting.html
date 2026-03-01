@@ -21,10 +21,13 @@
                     <div class="d-flex align-items-start justify-content-between mb-4">
                         <div>
                             <h5 class="fw-bold text-dark mb-1">Current Stock Snapshot</h5>
-                            <span class="badge bg-success-subtle text-success border border-success rounded-pill">Excel / CSV</span>
+                            <div>
+                                <span class="badge bg-success-subtle text-success border border-success rounded-pill me-1">Excel / CSV</span>
+                                <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill">PDF</span>
+                            </div>
                         </div>
                         <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 50px; height: 50px;">
-                            <i class="fas fa-file-csv fa-lg"></i>
+                            <i class="fas fa-boxes-stacked fa-lg"></i>
                         </div>
                     </div>
                     
@@ -34,9 +37,14 @@
                         <strong>Best for:</strong> End-of-month inventory counts and external data analysis.
                     </p>
 
-                    <a href="{% url 'inventory:reporting' %}?export=inventory_csv" class="btn btn-outline-success w-100 fw-bold py-2">
-                        <i class="fas fa-download me-2"></i>Download CSV
-                    </a>
+                    <div class="d-grid gap-2 d-sm-flex justify-content-center">
+                        <a href="{% url 'inventory:reporting' %}?export=inventory_csv" class="btn btn-outline-success flex-grow-1 fw-bold py-2">
+                            <i class="fas fa-file-csv me-2"></i>Download CSV
+                        </a>
+                        <a href="{% url 'inventory:reporting' %}?export=inventory_pdf" class="btn btn-outline-danger flex-grow-1 fw-bold py-2">
+                            <i class="fas fa-file-pdf me-2"></i>Download PDF
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

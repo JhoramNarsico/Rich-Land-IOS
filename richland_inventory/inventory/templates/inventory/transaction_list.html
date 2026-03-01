@@ -80,7 +80,8 @@
                         <th class="text-uppercase text-secondary small" style="width: 15%;">Reason</th>
                         <th class="text-center text-uppercase text-secondary small" style="width: 10%;">Qty</th>
                         <th class="text-uppercase text-secondary small" style="width: 15%;">User</th>
-                        <th class="text-uppercase text-secondary small" style="width: 15%;">Notes</th>
+                        <th class="text-uppercase text-secondary small" style="width: 10%;">Notes</th>
+                        <th class="text-end text-uppercase text-secondary small" style="width: 5%;"></th>
                     </tr>
                 </thead>
                 <tbody class="bg-white">
@@ -150,17 +151,35 @@
                         <!-- NOTES -->
                         <td>
                             {% if transaction.notes %}
-                                <span class="d-inline-block text-truncate text-muted small" style="max-width: 180px;" title="{{ transaction.notes }}">
+                                <span class="d-inline-block text-truncate text-muted small" style="max-width: 150px;" title="{{ transaction.notes }}">
                                     {{ transaction.notes }}
                                 </span>
                             {% else %}
                                 <span class="text-muted small">-</span>
                             {% endif %}
                         </td>
+
+                        <!-- ACTIONS -->
+                        <td class="text-end pe-4">
+                            <button type="button" class="btn btn-sm btn-light text-secondary border-0" 
+                                    data-bs-toggle="modal" 
+                                    data-bs-target="#transactionModal"
+                                    data-bs-type="{{ transaction.transaction_type }}"
+                                    data-bs-date="{{ transaction.timestamp|date:'M d, Y h:i A' }}"
+                                    data-bs-product="{{ transaction.product.name }}"
+                                    data-bs-sku="{{ transaction.product.sku }}"
+                                    data-bs-reason="{{ transaction.get_transaction_reason_display }}"
+                                    data-bs-qty="{{ transaction.quantity|intcomma }}"
+                                    data-bs-user="{{ transaction.user.username }}"
+                                    data-bs-notes="{{ transaction.notes|default:'-' }}"
+                                    title="View Details">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center py-5">
+                        <td colspan="8" class="text-center py-5">
                             <div class="text-muted mb-2"><i class="fas fa-search fa-2x opacity-25"></i></div>
                             <p class="text-muted fw-medium">No transactions found matching your criteria.</p>
                             <a href="{% url 'inventory:transaction_list' %}" class="btn btn-sm btn-outline-primary">Clear Filters</a>
@@ -209,6 +228,59 @@
     </div>
     {% endif %}
 
+    <!-- Transaction Details Modal -->
+    <div class="modal fade" id="transactionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-light">
+                    <h5 class="modal-title fw-bold">Transaction Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="row g-3">
+                        <div class="col-sm-6">
+                            <label class="small text-muted text-uppercase fw-bold">Date</label>
+                            <div class="fw-bold text-dark" id="modalDate"></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="small text-muted text-uppercase fw-bold">Type</label>
+                            <div id="modalType"></div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small text-muted text-uppercase fw-bold">Product</label>
+                            <div class="fw-bold fs-5" id="modalProduct"></div>
+                            <div class="font-monospace text-muted small" id="modalSku"></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="small text-muted text-uppercase fw-bold">Reason</label>
+                            <div id="modalReason"></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="small text-muted text-uppercase fw-bold">Quantity</label>
+                            <div class="fs-5 fw-bold font-monospace" id="modalQty"></div>
+                        </div>
+                        <div class="col-sm-6">
+                            <label class="small text-muted text-uppercase fw-bold">User</label>
+                            <div class="d-flex align-items-center">
+                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" style="width: 24px; height: 24px; font-size: 10px;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                                <span id="modalUser"></span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="small text-muted text-uppercase fw-bold">Notes</label>
+                            <div class="p-3 bg-light rounded border text-secondary" id="modalNotes" style="white-space: pre-wrap;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light border-top-0">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -234,6 +306,40 @@
         filterPanel.addEventListener('shown.bs.collapse', function () {
             localStorage.setItem(storageKey, 'shown');
         });
+
+        // 3. Transaction Modal Logic
+        const transactionModal = document.getElementById('transactionModal');
+        if (transactionModal) {
+            transactionModal.addEventListener('show.bs.modal', event => {
+                const button = event.relatedTarget;
+                
+                // Update Text Content
+                transactionModal.querySelector('#modalDate').textContent = button.getAttribute('data-bs-date');
+                transactionModal.querySelector('#modalProduct').textContent = button.getAttribute('data-bs-product');
+                transactionModal.querySelector('#modalSku').textContent = button.getAttribute('data-bs-sku');
+                transactionModal.querySelector('#modalUser').textContent = button.getAttribute('data-bs-user');
+                transactionModal.querySelector('#modalNotes').textContent = button.getAttribute('data-bs-notes');
+                
+                // Update Reason Badge
+                transactionModal.querySelector('#modalReason').innerHTML = `<span class="badge bg-light text-dark border rounded-pill px-3">${button.getAttribute('data-bs-reason')}</span>`;
+
+                // Update Type & Qty Styling
+                const type = button.getAttribute('data-bs-type');
+                const qty = button.getAttribute('data-bs-qty');
+                const modalType = transactionModal.querySelector('#modalType');
+                const modalQty = transactionModal.querySelector('#modalQty');
+
+                if (type === 'IN') {
+                    modalType.innerHTML = '<span class="badge bg-success-subtle text-success border border-success rounded-pill px-2"><i class="fas fa-arrow-down me-1"></i>Stock In</span>';
+                    modalQty.className = 'fs-5 fw-bold font-monospace text-success';
+                    modalQty.textContent = '+' + qty;
+                } else {
+                    modalType.innerHTML = '<span class="badge bg-danger-subtle text-danger border border-danger rounded-pill px-2"><i class="fas fa-arrow-up me-1"></i>Stock Out</span>';
+                    modalQty.className = 'fs-5 fw-bold font-monospace text-danger';
+                    modalQty.textContent = '-' + qty;
+                }
+            });
+        }
     });
 </script>
 {% endblock %}

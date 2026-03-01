@@ -4,7 +4,8 @@ from django.db import transaction
 from simple_history.admin import SimpleHistoryAdmin
 from .models import (
     Product, Category, StockTransaction, Supplier, PurchaseOrder, PurchaseOrderItem,
-    Customer, CustomerPayment, HydraulicSow, POSSale, Expense, ExpenseCategory
+    Customer, CustomerPayment, HydraulicSow, POSSale, Expense, ExpenseCategory,
+    PriceOverrideLog
 )
 from core.cache_utils import clear_dashboard_cache
 
@@ -39,6 +40,16 @@ class ProductAdmin(SimpleHistoryAdmin):
     list_editable = ('status',)
     history_list_display = ["status", "quantity", "price"]
     autocomplete_fields = ('category',)
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj: # On the change form, make quantity readonly
+            return ('quantity',)
+        return () # On the add form, it's not readonly (but will be excluded)
+
+    def get_exclude(self, request, obj=None):
+        if obj is None: # On the add form, exclude quantity
+            return ('quantity',)
+        return () # On the change form, do not exclude it
 
     @admin.display(description='Last Edited On')
     def last_edited_on(self, obj):
@@ -105,8 +116,8 @@ class HydraulicSowAdmin(admin.ModelAdmin):
 
 @admin.register(POSSale)
 class POSSaleAdmin(admin.ModelAdmin):
-    list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier')
-    list_filter = ('timestamp', 'payment_method', 'cashier')
+    list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'has_price_override')
+    list_filter = ('timestamp', 'payment_method', 'cashier', 'has_price_override')
     search_fields = ('receipt_id', 'customer__name')
     inlines = [StockTransactionInline]
     autocomplete_fields = ('customer', 'cashier')
@@ -118,12 +129,37 @@ class POSSaleAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+@admin.register(PriceOverrideLog)
+class PriceOverrideLogAdmin(admin.ModelAdmin):
+    list_display = ('timestamp', 'pos_sale', 'product', 'salesman', 'original_price', 'override_price', 'price_difference')
+    list_filter = ('timestamp', 'salesman', 'product')
+    search_fields = ('pos_sale__receipt_id', 'product__name', 'salesman__username')
+    date_hierarchy = 'timestamp'
+    readonly_fields = ('pos_sale', 'product', 'salesman', 'original_price', 'override_price', 'reason', 'timestamp')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 # --- Suppliers & Purchasing ---
 
 class PurchaseOrderItemInline(admin.TabularInline):
     model = PurchaseOrderItem
     extra = 1
     autocomplete_fields = ['product']
+    readonly_fields = ('price', 'line_total_display')
+    fields = ('product', 'quantity', 'price', 'line_total_display')
+
+    def line_total_display(self, instance):
+        if instance.pk:
+            return f"{instance.line_total:,.2f}"
+        return "-"
+    line_total_display.short_description = "Total Amount"
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
@@ -138,6 +174,15 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     inlines = [PurchaseOrderItemInline]
     date_hierarchy = 'order_date'
     autocomplete_fields = ('supplier',)
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for instance in instances:
+            if isinstance(instance, PurchaseOrderItem):
+                if instance.price is None and instance.product:
+                    instance.price = instance.product.price
+            instance.save()
+        formset.save_m2m()
 
 # --- Expenses ---
 

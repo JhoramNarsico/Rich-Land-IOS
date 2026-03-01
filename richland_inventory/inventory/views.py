@@ -33,7 +33,8 @@ from django.contrib import messages
 from django.http import HttpResponse
 from .models import (
     Customer, HydraulicSow, Expense, ExpenseCategory, Product, StockTransaction, 
-    Category, PurchaseOrder, Supplier, POSSale, CustomerPayment, PurchaseOrderItem
+    Category, PurchaseOrder, Supplier, POSSale, CustomerPayment, PurchaseOrderItem,
+    PriceOverrideLog
 )
 from .forms import (
     ExpenseFilterForm, ExpenseForm, ProductCreateForm, ProductUpdateForm, 
@@ -1446,9 +1447,12 @@ def pos_checkout(request):
         for item in items:
             product = Product.objects.get(pk=item.get('id'))
             qty = int(item.get('qty'))
-            
+
             # Allow for custom price override (requested lower price)
             custom_price = item.get('price')
+            original_price = item.get('original_price')
+            override_reason = item.get('override_reason')
+
             if custom_price is not None:
                 try:
                     sell_price = Decimal(str(custom_price))
@@ -1457,11 +1461,22 @@ def pos_checkout(request):
             else:
                 sell_price = product.price
 
+            if original_price is not None:
+                original_price_decimal = Decimal(str(original_price))
+            else:
+                original_price_decimal = product.price # Fallback
+
             if product.quantity < qty:
                 raise ValueError(f"Insufficient stock for {product.name}")
             
             total_calculated_cost += (sell_price * qty)
-            item_objects.append({'product': product, 'qty': qty, 'price': sell_price})
+            item_objects.append({
+                'product': product,
+                'qty': qty,
+                'price': sell_price,
+                'original_price': original_price_decimal,
+                'override_reason': override_reason
+            })
 
         # Credit Validation
         if payment_method == 'CREDIT':
@@ -1481,6 +1496,13 @@ def pos_checkout(request):
 
         receipt_id = f"REC-{uuid.uuid4().hex[:8].upper()}"
         
+        # Check if any item has a price override
+        sale_has_override = any(
+            item.get('price') is not None and item.get('original_price') is not None and
+            Decimal(str(item.get('price'))) < Decimal(str(item.get('original_price')))
+            for item in items
+        )
+        
         with transaction.atomic():
             # 1. Create Sale Header
             sale_record = POSSale.objects.create(
@@ -1490,7 +1512,8 @@ def pos_checkout(request):
                 payment_method=payment_method,
                 total_amount=total_calculated_cost, 
                 amount_paid=amount_paid,
-                change_given=(amount_paid - total_calculated_cost) if payment_method != 'CREDIT' else 0
+                change_given=(amount_paid - total_calculated_cost) if payment_method != 'CREDIT' else 0,
+                has_price_override=sale_has_override
             )
 
             receipt_items_response = []
@@ -1500,14 +1523,34 @@ def pos_checkout(request):
                 product = item_obj['product']
                 sell_qty = item_obj['qty']
                 sell_price = item_obj['price']
+                original_price = item_obj['original_price']
+                override_reason = item_obj.get('override_reason')
                 
                 # Lock row
                 product = Product.objects.select_for_update().get(pk=product.id)
+
+                # Log price override if price was lowered
+                if sell_price < original_price:
+                    PriceOverrideLog.objects.create(
+                        pos_sale=sale_record,
+                        product=product,
+                        salesman=request.user,
+                        original_price=original_price,
+                        override_price=sell_price,
+                        reason=override_reason
+                    )
+
                 product.quantity -= sell_qty
                 product.save()
                 
                 line_total = sell_qty * sell_price
                 
+                txn_notes = f"POS Sale: {receipt_id} ({payment_method})"
+                if sell_price < original_price:
+                    txn_notes += f" | Price Override: {original_price:,.2f} -> {sell_price:,.2f}"
+                    if override_reason:
+                        txn_notes += f" [Reason: {override_reason}]"
+
                 StockTransaction.objects.create(
                     product=product,
                     transaction_type='OUT',
@@ -1516,7 +1559,7 @@ def pos_checkout(request):
                     selling_price=sell_price,
                     user=request.user,
                     pos_sale=sale_record,
-                    notes=f"POS Sale: {receipt_id} ({payment_method})"
+                    notes=txn_notes
                 )
                 
                 receipt_items_response.append({
@@ -1620,13 +1663,43 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
 
     def get(self, request, *args, **kwargs):
         export_type = request.GET.get('export')
-        if export_type == 'inventory_csv': return self.export_inventory_csv()
-        elif export_type == 'transaction_pdf': return self.export_transactions_pdf(request)
+        if export_type == 'inventory_csv':
+            return self.export_inventory_csv()
+        elif export_type == 'inventory_pdf':
+            return self.export_inventory_pdf(request)
+        elif export_type == 'transaction_pdf':
+            return self.export_transactions_pdf(request)
         return super().get(request, *args, **kwargs)
 
     def export_inventory_csv(self):
         products = Product.objects.select_related('category').all()
         return generate_inventory_csv(products)
+
+    def export_inventory_pdf(self, request):
+        products = Product.objects.select_related('category').all().annotate(
+            total_value=ExpressionWrapper(F('quantity') * F('price'), output_field=DecimalField())
+        ).order_by('name')
+        
+        total_inventory_value = products.aggregate(total=Sum('total_value'))['total'] or Decimal('0.00')
+        total_items = products.aggregate(total=Sum('quantity'))['total'] or 0
+
+        context = {
+            'products': products,
+            'total_inventory_value': total_inventory_value,
+            'total_items': total_items,
+            'today': timezone.now(),
+        }
+
+        pdf = render_to_pdf('inventory/stock_snapshot_pdf.html', context, request=request)
+        
+        if pdf:
+            response = HttpResponse(pdf, content_type='application/pdf')
+            filename = f"Stock_Snapshot_{timezone.now().strftime('%Y%m%d')}.pdf"
+            response['Content-Disposition'] = f'attachment; filename="{filename}"'
+            return response
+            
+        messages.error(request, "Could not generate PDF report. Please try again.")
+        return redirect('inventory:reporting')
 
     def export_transactions_pdf(self, request):
         form = TransactionReportForm(request.GET)

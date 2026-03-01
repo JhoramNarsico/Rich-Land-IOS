@@ -177,6 +177,7 @@ class POSSale(models.Model):
     amount_paid = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     change_given = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     notes = models.TextField(blank=True, help_text="Transaction notes or description")
+    has_price_override = models.BooleanField(default=False, help_text="Flagged if any item's price was manually lowered.")
     
     class Meta:
         ordering = ['-timestamp']
@@ -294,6 +295,28 @@ class StockTransaction(models.Model):
 
     def __str__(self):
         return f'{self.transaction_type} ({self.get_transaction_reason_display()}) - {self.product.name}'
+
+class PriceOverrideLog(models.Model):
+    """Logs instances where a product's price was manually lowered in the POS."""
+    pos_sale = models.ForeignKey(POSSale, on_delete=models.CASCADE, related_name='price_overrides')
+    product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='price_overrides')
+    salesman = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    original_price = models.DecimalField(max_digits=10, decimal_places=2)
+    override_price = models.DecimalField(max_digits=10, decimal_places=2)
+    reason = models.CharField(max_length=255, blank=True, null=True, help_text="Reason for the price change.")
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-timestamp']
+        verbose_name = "Price Override Log"
+        verbose_name_plural = "Price Override Logs"
+
+    def __str__(self):
+        return f"Override on {self.product.name} in Sale {self.pos_sale.receipt_id}"
+
+    @property
+    def price_difference(self):
+        return self.original_price - self.override_price
 
 class Supplier(models.Model):
     supplier_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
