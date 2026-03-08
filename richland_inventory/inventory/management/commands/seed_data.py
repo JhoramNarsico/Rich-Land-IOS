@@ -8,8 +8,8 @@ from django.contrib.auth.models import User
 from django.db import transaction
 from inventory.models import (
     Category, Supplier, Product, PurchaseOrder, PurchaseOrderItem, 
-    StockTransaction, Customer, CustomerPayment, POSSale, 
-    ExpenseCategory, Expense, HydraulicSow
+    StockTransaction, Customer, CustomerPayment, POSSale, ExpenseCategory, 
+    Expense, HydraulicSow, PriceOverrideLog
 )
 
 class Command(BaseCommand):
@@ -298,9 +298,20 @@ class Command(BaseCommand):
                 
                 for product in selected_products:
                     # Magic restock if low to prevent negative stock in simulation
-                    if product.quantity < 10: 
-                        product.quantity += 50
-                        product.save()
+                    if product.quantity < 10:
+                        restock_qty = 50
+                        st_restock = StockTransaction.objects.create(
+                            product=product,
+                            transaction_type='IN',
+                            transaction_reason='CORRECTION',
+                            quantity=restock_qty,
+                            user=user,
+                            notes="Automatic restock during seeding"
+                        )
+                        st_restock.timestamp = txn_date
+                        st_restock.save(update_fields=['timestamp'])
+                        product.quantity += restock_qty
+                        product.save(update_fields=['quantity'])
                         
                     qty = random.randint(1, 4)
                     
@@ -308,14 +319,12 @@ class Command(BaseCommand):
                     selling_price = product.price
                     if random.random() < 0.05:
                         selling_price = product.price * Decimal('0.9') # 10% discount
-                    
-                    st = StockTransaction.objects.create(
+                    StockTransaction.objects.create(
                         product=product, pos_sale=sale_record, transaction_type='OUT',
                         transaction_reason='SALE', quantity=qty, selling_price=selling_price,
-                        user=user, notes=f"POS Sale: {sale_record.receipt_id}"
+                        user=user, notes=f"POS Sale: {sale_record.receipt_id}",
+                        timestamp=txn_date
                     )
-                    st.timestamp = txn_date
-                    st.save()
                     
                     product.quantity -= qty
                     product.save()
@@ -391,10 +400,11 @@ class Command(BaseCommand):
         """Deletes data from models to prepare for fresh seeding."""
         self.stdout.write("Clearing old data...")
         # Order is important to respect foreign key constraints
+        # Delete models with foreign keys first.
         models_to_clear = [
-            StockTransaction, PurchaseOrderItem, PurchaseOrder, 
-            POSSale, CustomerPayment, HydraulicSow, Customer, 
-            Expense, ExpenseCategory, Product, Category, Supplier
+            PriceOverrideLog, StockTransaction, PurchaseOrderItem, CustomerPayment,
+            POSSale, HydraulicSow, PurchaseOrder, Expense, Product,
+            Customer, Supplier, Category, ExpenseCategory
         ]
         for model in models_to_clear:
             try:

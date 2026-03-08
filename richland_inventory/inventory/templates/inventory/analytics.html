@@ -328,32 +328,9 @@
         // Add a single listener to restyle whenever a tab is shown
         document.getElementById('analyticsTab').addEventListener('shown.bs.tab', styleTabs);
 
-        // 1. Category
-        const catLabels = JSON.parse('{{ cat_labels|safe }}');
-        const catValues = JSON.parse('{{ cat_values|safe }}');
-        
-        if (catLabels.length > 0) {
-            new Chart(document.getElementById("categoryChart"), {
-                type: 'doughnut',
-                data: {
-                    labels: catLabels,
-                    datasets: [{
-                        data: catValues,
-                        backgroundColor: ['#2799a5', '#2c3e50', '#f39c12', '#c0392b', '#95a5a6', '#63dcb9'],
-                        borderWidth: 0
-                    }]
-                },
-                options: {
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right' } },
-                    cutout: '70%'
-                }
-            });
-        }
-
         // 1.B Expense Category
-        const expCatLabels = JSON.parse('{{ exp_cat_labels|safe }}');
-        const expCatValues = JSON.parse('{{ exp_cat_values|safe }}');
+        const expCatLabels = {{ exp_cat_labels|default:"[]"|safe }};
+        const expCatValues = {{ exp_cat_values|default:"[]"|safe }};
         
         if (expCatLabels.length > 0) {
             new Chart(document.getElementById("expenseCategoryChart"), {
@@ -368,39 +345,10 @@
             });
         }
 
-        // 2. Top Products
-        const prodLabels = JSON.parse('{{ prod_labels|safe }}');
-        const prodValues = JSON.parse('{{ prod_values|safe }}');
-
-        if (prodLabels.length > 0) {
-            new Chart(document.getElementById("productChart"), {
-                type: 'bar',
-                data: {
-                    labels: prodLabels,
-                    datasets: [{
-                        label: 'Revenue',
-                        data: prodValues,
-                        backgroundColor: '#2799a5',
-                        borderRadius: 4,
-                        barThickness: 25
-                    }]
-                },
-                options: {
-                    indexAxis: 'y',
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        x: { grid: { display: false } },
-                        y: { grid: { display: false } }
-                    }
-                }
-            });
-        }
-
         // 3. Trend
-        const trendLabels = JSON.parse('{{ trend_labels|safe }}');
-        const trendSales = JSON.parse('{{ trend_sales_values|safe }}');
-        const trendExpenses = JSON.parse('{{ trend_expense_values|safe }}');
+        const trendLabels = {{ trend_labels|default:"[]"|safe }};
+        const trendSales = {{ trend_sales_values|default:"[]"|safe }};
+        const trendExpenses = {{ trend_expense_values|default:"[]"|safe }};
 
         if (trendLabels.length > 0) {
             new Chart(document.getElementById("trendChart"), {
@@ -438,8 +386,8 @@
         }
 
         // 4. Payment Method (Sales vs Charges)
-        const payLabels = JSON.parse('{{ pay_labels|safe }}');
-        const payValues = JSON.parse('{{ pay_values|safe }}');
+        const payLabels = {{ pay_labels|default:"[]"|safe }};
+        const payValues = {{ pay_values|default:"[]"|safe }};
 
         if (payLabels.length > 0) {
             new Chart(document.getElementById("paymentMethodChart"), {
@@ -453,6 +401,67 @@
                 }
             });
         }
+
+        // --- Inventory Charts (Lazy Load) ---
+        let inventoryChartsLoaded = false;
+        const loadInventoryCharts = () => {
+            if (inventoryChartsLoaded) return;
+
+            // 1. Category
+            const catLabels = {{ cat_labels|default:"[]"|safe }};
+            const catValues = {{ cat_values|default:"[]"|safe }};
+            
+            if (catLabels.length > 0) {
+                new Chart(document.getElementById("categoryChart"), {
+                    type: 'doughnut',
+                    data: {
+                        labels: catLabels,
+                        datasets: [{
+                            data: catValues,
+                            backgroundColor: ['#2799a5', '#2c3e50', '#f39c12', '#c0392b', '#95a5a6', '#63dcb9'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        maintainAspectRatio: false,
+                        plugins: { legend: { position: 'right' } },
+                        cutout: '70%'
+                    }
+                });
+            }
+
+            // 2. Top Products
+            const prodLabels = {{ prod_labels|default:"[]"|safe }};
+            const prodValues = {{ prod_values|default:"[]"|safe }};
+
+            if (prodLabels.length > 0) {
+                new Chart(document.getElementById("productChart"), {
+                    type: 'bar',
+                    data: {
+                        labels: prodLabels,
+                        datasets: [{
+                            label: 'Revenue',
+                            data: prodValues,
+                            backgroundColor: '#2799a5',
+                            borderRadius: 4,
+                            barThickness: 25
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { grid: { display: false } }
+                        }
+                    }
+                });
+            }
+            inventoryChartsLoaded = true;
+        };
+
+        document.getElementById('inventory-tab').addEventListener('shown.bs.tab', loadInventoryCharts);
     });
 </script>
 {% endblock %}

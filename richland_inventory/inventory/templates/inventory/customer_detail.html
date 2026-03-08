@@ -155,9 +155,15 @@
                                 {% if ledger_q %}
                                 <a href="{% url 'inventory:customer_detail' pk=customer.pk %}{% if sow_q %}?sow_q={{ sow_q }}{% endif %}" class="btn btn-sm btn-light border" title="Clear search"><i class="fas fa-times"></i></a>
                                 {% endif %}
-                                <a href="{% url 'inventory:customer_ledger_import' pk=customer.pk %}" class="btn btn-sm btn-outline-secondary">
-                                    <i class="fas fa-file-import"></i>
-                                </a>
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Import Options">
+                                        <i class="fas fa-file-import"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                                        <li><a class="dropdown-item" href="{% url 'inventory:customer_ledger_import' pk=customer.pk %}"><i class="fas fa-upload me-2 text-primary"></i>Upload File</a></li>
+                                        <li><a class="dropdown-item" href="{% url 'inventory:download_ledger_template' %}"><i class="fas fa-download me-2 text-secondary"></i>Download Template</a></li>
+                                    </ul>
+                                </div>
                                 <div class="dropdown">
                                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                         Export
@@ -271,9 +277,15 @@
                         {% if sow_q %}
                         <a href="{% url 'inventory:customer_detail' pk=customer.pk %}{% if ledger_q %}?ledger_q={{ ledger_q }}{% endif %}" class="btn btn-sm btn-light border" title="Clear search"><i class="fas fa-times"></i></a>
                         {% endif %}
-                        <a href="{% url 'inventory:customer_sow_import' pk=customer.pk %}" class="btn btn-sm btn-outline-secondary">
-                            <i class="fas fa-file-import"></i>
-                        </a>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Import Options">
+                                <i class="fas fa-file-import"></i>
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                                <li><a class="dropdown-item" href="{% url 'inventory:customer_sow_import' pk=customer.pk %}"><i class="fas fa-upload me-2 text-primary"></i>Upload File</a></li>
+                                <li><a class="dropdown-item" href="{% url 'inventory:download_sow_template' %}"><i class="fas fa-download me-2 text-secondary"></i>Download Template</a></li>
+                            </ul>
+                        </div>
                         <div class="dropdown">
                             <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
                                 Export

@@ -50,6 +50,7 @@ from .exports import (
 )
 from openpyxl import load_workbook # Kept for imports
 from core.cache_utils import clear_dashboard_cache
+from . import importers as inventory_importers
 
 def hydraulic_sow_create(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
@@ -363,58 +364,43 @@ def import_sow_history(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     
     if request.method == "POST" and request.FILES.get('csv_file'):
-        csv_file = request.FILES['csv_file']
-        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+        file_obj = request.FILES['csv_file']
+        if not (file_obj.name.lower().endswith('.csv') or file_obj.name.lower().endswith('.xlsx')):
             messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:customer_detail', pk=pk)
 
         try:
-            data = []
-            if csv_file.name.endswith('.csv'):
-                decoded_file = csv_file.read().decode('utf-8').splitlines()
-                reader = csv.DictReader(decoded_file)
-                # Normalize headers
-                reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
-                data = list(reader)
-            elif csv_file.name.endswith('.xlsx'):
-                wb = load_workbook(csv_file, data_only=True)
-                ws = wb.active
-                rows = list(ws.iter_rows(values_only=True))
-                if rows:
-                    headers = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[0]]
-                    for row in rows[1:]:
-                        # Create dict, converting None to empty string to mimic CSV behavior
-                        row_dict = {headers[i]: (str(val) if val is not None else '') for i, val in enumerate(row) if i < len(headers)}
-                        data.append(row_dict)
+            count, errors = inventory_importers.import_sow_from_file(file_obj, customer, request.user)
             
-            count = 0
-            with transaction.atomic():
-                for row in data:
-                    cost_val = row.get('cost', 0)
-                    if cost_val is None or cost_val == '': cost_val = 0
-                    # Basic mapping, assuming CSV headers match model fields or close to it
-                    HydraulicSow.objects.create(
-                        customer=customer,
-                        created_by=request.user,
-                        hose_type=row.get('hose_type', ''),
-                        diameter=row.get('diameter', ''),
-                        length=row.get('length') or None,
-                        pressure=row.get('pressure') or None,
-                        cost=Decimal(str(cost_val)),
-                        application=row.get('application', ''),
-                        fitting_a=row.get('fitting_a', ''),
-                        fitting_b=row.get('fitting_b', ''),
-                        notes=row.get('notes', '')
-                    )
-                    count += 1
-            messages.success(request, f"Imported {count} SOW records.")
+            if errors:
+                for error in errors[:5]:
+                    messages.error(request, error)
+                if len(errors) > 5:
+                    messages.warning(request, f"And {len(errors) - 5} more errors...")
+            else:
+                if count > 0:
+                    messages.success(request, f"Successfully imported {count} SOW records.")
+                else:
+                    messages.info(request, "Import complete. No new SOW records were added.")
+
         except Exception as e:
-            messages.error(request, f"Error processing file: {e}")
+            messages.error(request, f"An unexpected error occurred while processing the file: {e}")
             
         return redirect('inventory:customer_detail', pk=pk)
 
     return render(request, 'inventory/sow_import.html', {'customer': customer})
 
+@login_required
+def download_sow_template(request):
+    """Downloads a CSV template for SOW imports."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="sow_import_template.csv"'
+    writer = csv.writer(response)
+    # Headers matching importers.py expectations (Title case works due to normalization in importer)
+    writer.writerow(['Hose Type', 'Diameter', 'Length', 'Pressure', 'Cost', 'Application', 'Fitting A', 'Fitting B', 'Notes'])
+    # Sample data
+    writer.writerow(['2 Wire', '1/2', '1000', '3000', '1500.00', 'Excavator Boom', 'JIC F', 'BSP M', 'Urgent repair'])
+    return response
 
 # --- EXPENSE MANAGEMENT ---
 
@@ -763,110 +749,54 @@ def customer_payment(request, pk):
 
 @login_required
 def import_ledger_entries(request, pk):
-    """Import Ledger Entries (Charges/Payments) from CSV"""
+    """Import Ledger Entries (Charges/Payments) from CSV/Excel"""
     customer = get_object_or_404(Customer, pk=pk)
     
     if request.method == "POST" and request.FILES.get('csv_file'):
-        csv_file = request.FILES['csv_file']
-        if not (csv_file.name.endswith('.csv') or csv_file.name.endswith('.xlsx')):
+        file_obj = request.FILES['csv_file']
+        if not (file_obj.name.lower().endswith('.csv') or file_obj.name.lower().endswith('.xlsx')):
             messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:customer_detail', pk=pk)
 
         try:
-            data = []
-            if csv_file.name.endswith('.csv'):
-                decoded_file = csv_file.read().decode('utf-8').splitlines()
-                reader = csv.DictReader(decoded_file)
-                reader.fieldnames = [name.strip().lower() for name in reader.fieldnames]
-                data = list(reader)
-            elif csv_file.name.endswith('.xlsx'):
-                wb = load_workbook(csv_file, data_only=True)
-                ws = wb.active
-                rows = list(ws.iter_rows(values_only=True))
-                if rows:
-                    headers = [str(h).strip().lower() if h else '' for h in rows[0]]
-                    for row in rows[1:]:
-                        # Keep native types for date/numbers
-                        row_dict = {headers[i]: val for i, val in enumerate(row) if i < len(headers)}
-                        data.append(row_dict)
+            count_charges, count_payments, errors = inventory_importers.import_ledger_entries_from_file(file_obj, customer, request.user)
             
-            # Expected headers mapping (naive)
-            # We expect: date, reference, description, charge, payment
-            
-            count_charges = 0
-            count_payments = 0
-            
-            with transaction.atomic():
-                for row in data:
-                    # Parse Date
-                    date_val = row.get('date')
-                    try:
-                        if isinstance(date_val, (datetime, datetime.date)):
-                            txn_date = date_val
-                            if not timezone.is_aware(txn_date) and isinstance(txn_date, datetime):
-                                txn_date = timezone.make_aware(txn_date)
-                        else:
-                            txn_date = datetime.strptime(str(date_val), '%Y-%m-%d')
-                            txn_date = timezone.make_aware(txn_date)
-                    except (ValueError, TypeError):
-                        # Skip if no valid date
-                        continue
-                        
-                    ref = row.get('reference') or ''
-                    desc = row.get('description') or ''
-                    
-                    # Parse Amounts
-                    try:
-                        charge_val = float(row.get('charge') or 0)
-                        payment_val = float(row.get('payment') or 0)
-                    except ValueError:
-                        continue
-                        
-                    # 1. Handle CHARGE (Debit) -> Create POSSale (Credit Sale)
-                    if charge_val > 0:
-                        # Check duplicate by receipt_id
-                        if not POSSale.objects.filter(receipt_id=ref).exists():
-                            POSSale.objects.create(
-                                receipt_id=ref, # Use CSV Ref as Receipt ID
-                                customer=customer,
-                                payment_method='CREDIT',
-                                total_amount=Decimal(charge_val),
-                                amount_paid=0,
-                                change_given=0,
-                                timestamp=txn_date,
-                                notes=desc, # Store description in notes
-                                cashier=request.user
-                            )
-                            count_charges += 1
-                            
-                    # 2. Handle PAYMENT (Credit) -> Create CustomerPayment
-                    if payment_val > 0:
-                        # Check duplicate logic could be tricky for payments as Ref is not unique
-                        # We will try to avoid exact duplicates (same date, same ref, same amount)
-                        if not CustomerPayment.objects.filter(
-                            customer=customer, 
-                            reference_number=ref, 
-                            amount=Decimal(payment_val),
-                            payment_date=txn_date
-                        ).exists():
-                            CustomerPayment.objects.create(
-                                customer=customer,
-                                amount=Decimal(payment_val),
-                                payment_date=txn_date,
-                                reference_number=ref,
-                                notes=desc,
-                                recorded_by=request.user
-                            )
-                            count_payments += 1
-                            
-            messages.success(request, f"Imported {count_charges} charges and {count_payments} payments.")
+            if errors:
+                for error in errors[:5]:
+                    messages.error(request, error)
+                if len(errors) > 5:
+                    messages.warning(request, f"And {len(errors) - 5} more errors...")
+            else:
+                summary = []
+                if count_charges:
+                    summary.append(f"{count_charges} charge(s)")
+                if count_payments:
+                    summary.append(f"{count_payments} payment(s)")
+                
+                if summary:
+                    messages.success(request, f"Successfully imported {' and '.join(summary)}.")
+                else:
+                    messages.info(request, "Import complete. No new entries were added.")
             
         except Exception as e:
-            messages.error(request, f"Error processing file: {e}")
+            messages.error(request, f"An unexpected error occurred while processing the file: {e}")
             
         return redirect('inventory:customer_detail', pk=pk)
 
     return render(request, 'inventory/ledger_import.html', {'customer': customer})
+
+@login_required
+def download_ledger_template(request):
+    """Downloads a CSV template for ledger imports."""
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = 'attachment; filename="ledger_import_template.csv"'
+    writer = csv.writer(response)
+    # Headers matching importers.py expectations
+    writer.writerow(['Date', 'Reference', 'Description', 'Charge', 'Payment'])
+    # Sample data
+    writer.writerow([timezone.now().strftime('%Y-%m-%d'), 'INV-001', 'Opening Balance', '1500.00', '0'])
+    writer.writerow([timezone.now().strftime('%Y-%m-%d'), 'PAY-001', 'Partial Payment', '0', '500.00'])
+    return response
 
 class CustomerUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Customer
@@ -1181,6 +1111,14 @@ def export_statement(request, pk):
     return HttpResponse("Error Generating Export", status=500)
 
 # --- PRODUCT MANAGEMENT (UI) ---
+
+@login_required
+@permission_required('inventory.add_product', raise_exception=True)
+def import_products(request):
+    if request.method == 'POST':
+        messages.info(request, "Product import functionality is under construction.")
+        return redirect('inventory:product_list')
+    return render(request, 'inventory/form_import.html', {'title': 'Import Products'})
 
 class ProductListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Product
@@ -1879,7 +1817,7 @@ def analytics_dashboard(request):
         cat_id = item['product__category']
         name = categories[cat_id].name if cat_id in categories else 'Uncategorized'
         cat_labels.append(name)
-        cat_values.append(float(item['sales']))
+        cat_values.append(float(item['sales'] or 0))
     
     # B. Top 5 Best Selling Products
     # Optimized: Group by ID to avoid joins during aggregation
@@ -1896,12 +1834,12 @@ def analytics_dashboard(request):
         prod_id = item['product']
         if prod_id in products:
             prod_labels.append(products[prod_id].name)
-            prod_values.append(float(item['sales']))
+            prod_values.append(float(item['sales'] or 0))
     
     # C. Expenses by Category
     exp_cat_qs = expenses_qs.values('category__name').annotate(total=Sum('amount')).order_by('-total')
     exp_cat_labels = [item['category__name'] or 'Uncategorized' for item in exp_cat_qs]
-    exp_cat_values = [float(item['total']) for item in exp_cat_qs]
+    exp_cat_values = [float(item['total'] or 0) for item in exp_cat_qs]
     
     # D. Financial Trend (Sales vs Expenses)
     sales_trend = pos_sales.annotate(date=TruncDate('timestamp')).values('date').annotate(daily_total=Sum('total_amount')).order_by('date')
@@ -1959,17 +1897,17 @@ def analytics_dashboard(request):
         'damages_count': total_damages_count,
         
         # Charts (JSON)
-        'cat_labels': json.dumps(cat_labels),
-        'cat_values': json.dumps(cat_values),
-        'exp_cat_labels': json.dumps(exp_cat_labels),
-        'exp_cat_values': json.dumps(exp_cat_values),
-        'prod_labels': json.dumps(prod_labels),
-        'prod_values': json.dumps(prod_values),
-        'trend_labels': json.dumps(trend_labels),
-        'trend_sales_values': json.dumps(trend_sales_values),
-        'trend_expense_values': json.dumps(trend_expense_values),
-        'pay_labels': json.dumps(pay_labels),
-        'pay_values': json.dumps(pay_values),
+        'cat_labels': cat_labels,
+        'cat_values': cat_values,
+        'exp_cat_labels': exp_cat_labels,
+        'exp_cat_values': exp_cat_values,
+        'prod_labels': prod_labels,
+        'prod_values': prod_values,
+        'trend_labels': trend_labels,
+        'trend_sales_values': trend_sales_values,
+        'trend_expense_values': trend_expense_values,
+        'pay_labels': pay_labels,
+        'pay_values': pay_values,
     }
     return render(request, 'inventory/analytics.html', context)
 

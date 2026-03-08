@@ -18,6 +18,7 @@ urlpatterns = [
     # Custom Actions
     path('product/<slug:slug>/toggle_status/', views.product_toggle_status, name='product_toggle_status'),
     path('product/<slug:slug>/refund/', views.product_refund, name='product_refund'),
+    path('products/import/', views.import_products, name='product_import'),
     
     # AJAX
     path('ajax/category/add/', views.add_category_ajax, name='add_category_ajax'),
@@ -60,10 +61,12 @@ urlpatterns = [
     path('customers/<int:pk>/payment/', views.customer_payment, name='customer_payment'),
     path('customers/<int:pk>/export/', views.export_statement, name='customer_statement_export'),
     path('customers/<int:pk>/sow/new/', views.hydraulic_sow_create, name='hydraulic_sow_create'),
+    path('customers/templates/ledger/', views.download_ledger_template, name='download_ledger_template'),
     path('customers/<int:pk>/sow/<int:sow_pk>/update/', views.hydraulic_sow_update, name='hydraulic_sow_update'),
     path('sow/import/', views.hydraulic_sow_import, name='hydraulic_sow_import'),
     path('customers/<int:pk>/sow/export/', views.export_sow_history, name='customer_sow_export'),
     path('customers/<int:pk>/sow/import/', views.import_sow_history, name='customer_sow_import'),
+    path('customers/templates/sow/', views.download_sow_template, name='download_sow_template'),
 
     # --- EXPENSE REPORTING ---
     path('expenses/', views.ExpenseListView.as_view(), name='expense_list'),
