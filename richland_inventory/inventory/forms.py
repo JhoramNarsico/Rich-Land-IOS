@@ -1,6 +1,7 @@
 # inventory/forms.py
 
 import datetime
+from decimal import Decimal
 from django import forms
 from django.contrib.auth.models import User
 from django.forms import DateInput, ModelChoiceField
@@ -50,12 +51,14 @@ class CustomerPaymentForm(forms.ModelForm):
                 payment_method='CREDIT'
             ).annotate(
                 paid_amount=Coalesce(Sum('payments_received__amount'), Value(0, output_field=DecimalField()))
+            ).annotate(
+                outstanding=F('total_amount') - F('paid_amount')
             ).filter(
-                paid_amount__lt=F('total_amount')
+                outstanding__gte=Decimal('0.01') # Consider paid if outstanding is less than 1 cent.
             )
 
             self.fields['sale_paid'].queryset = unpaid_sales
-            self.fields['sale_paid'].label_from_instance = lambda obj: f"{obj.receipt_id} (Outstanding: {obj.total_amount - obj.paid_amount:,.2f})"
+            self.fields['sale_paid'].label_from_instance = lambda obj: f"{obj.receipt_id} (Outstanding: {obj.outstanding:,.2f})"
 
 class ProductCreateForm(forms.ModelForm):
     class Meta:

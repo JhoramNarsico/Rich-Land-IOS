@@ -48,7 +48,9 @@ from .exports import (
     generate_sow_history_export, generate_expense_report, generate_customer_list_export,
     generate_customer_statement, generate_inventory_csv, generate_supplier_deliveries_export
 )
-from openpyxl import load_workbook # Kept for imports
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 from core.cache_utils import clear_dashboard_cache
 from . import importers as inventory_importers
 
@@ -388,18 +390,119 @@ def import_sow_history(request, pk):
             
         return redirect('inventory:customer_detail', pk=pk)
 
-    return render(request, 'inventory/sow_import.html', {'customer': customer})
+    instructions = {
+        "title": "How to Format Your SOW Data",
+        "general": [
+            "Fill in your SOW (Scope of Work) data in the downloaded Excel template.",
+            "Do NOT change the column headers in the 'Data' sheet.",
+            "Fields marked with an asterisk (*) are REQUIRED.",
+            "Delete the sample row in the 'Data' sheet before uploading."
+        ],
+        "columns": [
+            {"name": "Hose Type (*)", "desc": "The type of hose.", "example": "'2 Wire'"},
+            {"name": "Diameter (*)", "desc": "The hose diameter.", "example": "'1/2'"},
+            {"name": "Length (*)", "desc": "The length of the hose (as a number).", "example": "1000"},
+            {"name": "Pressure", "desc": "The pressure rating (as a number).", "example": "3000"},
+            {"name": "Cost", "desc": "The cost of the service (as a number, no currency symbol).", "example": "1500.00"},
+            {"name": "Application", "desc": "Where the hose is used.", "example": "'Excavator Boom'"},
+            {"name": "Fitting A (*)", "desc": "The type of the first fitting.", "example": "'JIC F'"},
+            {"name": "Fitting B (*)", "desc": "The type of the second fitting.", "example": "'BSP M'"},
+            {"name": "Notes", "desc": "Any additional notes or comments.", "example": "'Urgent repair'"},
+        ]
+    }
+    return render(request, 'inventory/sow_import.html', {'customer': customer, 'instructions': instructions})
 
 @login_required
 def download_sow_template(request):
     """Downloads a CSV template for SOW imports."""
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="sow_import_template.csv"'
-    writer = csv.writer(response)
-    # Headers matching importers.py expectations (Title case works due to normalization in importer)
-    writer.writerow(['Hose Type', 'Diameter', 'Length', 'Pressure', 'Cost', 'Application', 'Fitting A', 'Fitting B', 'Notes'])
-    # Sample data
-    writer.writerow(['2 Wire', '1/2', '1000', '3000', '1500.00', 'Excavator Boom', 'JIC F', 'BSP M', 'Urgent repair'])
+    """Downloads an Excel template for SOW imports with instructions."""
+    wb = Workbook()
+    
+    # --- Create Instructions Sheet ---
+    ws_instructions = wb.active
+    ws_instructions.title = "Instructions"
+
+    # Styles
+    title_font = Font(name='Calibri', bold=True, size=16, color="1F4E78")
+    header_font = Font(name='Calibri', bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    instruction_header_font = Font(name='Calibri', bold=True, size=12)
+    thin_border = Border(left=Side(style='thin'), 
+                         right=Side(style='thin'), 
+                         top=Side(style='thin'), 
+                         bottom=Side(style='thin'))
+    
+    # Title
+    ws_instructions['A1'] = "How to Use This Import Template"
+    ws_instructions['A1'].font = title_font
+    ws_instructions.merge_cells('A1:D1')
+
+    # General Instructions
+    ws_instructions.append([]) # Spacer
+    ws_instructions['A3'] = "General Rules"
+    ws_instructions['A3'].font = header_font
+    ws_instructions.append(["1. Fill in your SOW (Scope of Work) data in the 'Data' sheet."])
+    ws_instructions.append(["2. Do NOT change the column headers in the 'Data' sheet."])
+    ws_instructions.append(["3. Fields marked with an asterisk (*) are REQUIRED."])
+    ws_instructions.append(["4. Delete the sample row in the 'Data' sheet before uploading."])
+    ws_instructions.append([]) # Spacer
+    
+    # Column Descriptions
+    ws_instructions['A9'] = "Column Guide"
+    ws_instructions['A9'].font = header_font
+    
+    headers = [
+        ("Column", "Description", "Example", "Required?"),
+        ("Hose Type", "The type of hose.", "'2 Wire'", "Yes (*)"),
+        ("Diameter", "The hose diameter.", "'1/2'", "Yes (*)"),
+        ("Length", "The length of the hose (as a number).", "1000", "Yes (*)"),
+        ("Pressure", "The pressure rating (as a number).", "3000", "No"),
+        ("Cost", "The cost of the service (as a number, no currency symbol).", "1500.00", "No"),
+        ("Application", "Where the hose is used.", "'Excavator Boom'", "No"),
+        ("Fitting A", "The type of the first fitting.", "'JIC F'", "Yes (*)"),
+        ("Fitting B", "The type of the second fitting.", "'BSP M'", "Yes (*)"),
+        ("Notes", "Any additional notes or comments.", "'Urgent repair'", "No"),
+    ]
+    
+    for row_data in headers:
+        ws_instructions.append(row_data)
+
+    # Styling for instructions table
+    for cell in ws_instructions['A10:D10'][0]:
+        cell.font = Font(name='Calibri', bold=True)
+        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.alignment = Alignment(horizontal='center')
+    
+    for row in ws_instructions['A10:D19']:
+        for cell in row:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center')
+
+    for col_idx, width in enumerate([20, 50, 25, 15], 1):
+        ws_instructions.column_dimensions[get_column_letter(col_idx)].width = width
+    
+    # --- Create Data Sheet ---
+    ws_data = wb.create_sheet(title="Data")
+    data_headers = ['Hose Type', 'Diameter', 'Length', 'Pressure', 'Cost', 'Application', 'Fitting A', 'Fitting B', 'Notes']
+    ws_data.append(data_headers)
+    ws_data.append(['2 Wire', '1/2', 1000, 3000, 1500.00, 'Excavator Boom', 'JIC F', 'BSP M', 'Urgent repair'])
+    
+    # Style header and set column widths
+    for i, cell in enumerate(ws_data['1:1'], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        ws_data.column_dimensions[get_column_letter(i)].width = 22
+
+    ws_data.freeze_panes = 'A2'
+    for row in ws_data['A1:I2']:
+        for cell in row:
+            cell.border = thin_border
+
+    # --- Prepare Response ---
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="sow_import_template.xlsx"'
+    wb.save(response)
     return response
 
 # --- EXPENSE MANAGEMENT ---
@@ -767,35 +870,123 @@ def import_ledger_entries(request, pk):
                 if len(errors) > 5:
                     messages.warning(request, f"And {len(errors) - 5} more errors...")
             else:
-                summary = []
-                if count_charges:
-                    summary.append(f"{count_charges} charge(s)")
                 if count_payments:
-                    summary.append(f"{count_payments} payment(s)")
-                
-                if summary:
-                    messages.success(request, f"Successfully imported {' and '.join(summary)}.")
+                    messages.success(request, f"Successfully imported {count_payments} payment(s).")
                 else:
-                    messages.info(request, "Import complete. No new entries were added.")
+                    messages.info(request, "Import complete. No new payments were added.")
             
         except Exception as e:
             messages.error(request, f"An unexpected error occurred while processing the file: {e}")
             
         return redirect('inventory:customer_detail', pk=pk)
 
-    return render(request, 'inventory/ledger_import.html', {'customer': customer})
+    instructions = {
+        "title": "How to Format Your Payment Data",
+        "general": [
+            "Fill in your payment data in the downloaded Excel template.",
+            "Do NOT change the column headers in the 'Data' sheet.",
+            "Delete the sample rows before uploading.",
+            "Use YYYY-MM-DD format for dates."
+        ],
+        "columns": [
+            {"name": "Date (*)", "desc": "Payment date in YYYY-MM-DD format.", "example": timezone.now().strftime('%Y-%m-%d')},
+            {"name": "Reference", "desc": "Receipt #, Check #, or Transaction Ref.", "example": "'PAY-1001'"},
+            {"name": "Description", "desc": "Details about the payment.", "example": "'Partial Payment'"},
+            {"name": "Payment (*)", "desc": "Amount paid by customer. Must be a positive number.", "example": "500.00"},
+        ],
+        "notes": [
+            "This import tool is for recording payments only. New charges must be created via POS or SOW."
+        ]
+    }
+    return render(request, 'inventory/ledger_import.html', {'customer': customer, 'instructions': instructions})
 
 @login_required
 def download_ledger_template(request):
-    """Downloads a CSV template for ledger imports."""
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="ledger_import_template.csv"'
-    writer = csv.writer(response)
-    # Headers matching importers.py expectations
-    writer.writerow(['Date', 'Reference', 'Description', 'Charge', 'Payment'])
-    # Sample data
-    writer.writerow([timezone.now().strftime('%Y-%m-%d'), 'INV-001', 'Opening Balance', '1500.00', '0'])
-    writer.writerow([timezone.now().strftime('%Y-%m-%d'), 'PAY-001', 'Partial Payment', '0', '500.00'])
+    """Downloads an Excel template for ledger imports with instructions."""
+    wb = Workbook()
+    
+    # --- Create Instructions Sheet ---
+    ws_instructions = wb.active
+    ws_instructions.title = "Instructions"
+
+    # Styles
+    title_font = Font(name='Calibri', bold=True, size=16, color="1F4E78")
+    header_font = Font(name='Calibri', bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    instruction_header_font = Font(name='Calibri', bold=True, size=12)
+    thin_border = Border(left=Side(style='thin'), 
+                         right=Side(style='thin'), 
+                         top=Side(style='thin'), 
+                         bottom=Side(style='thin'))
+    
+    # Title
+    ws_instructions['A1'] = "How to Use This Import Template"
+    ws_instructions['A1'].font = title_font
+    ws_instructions.merge_cells('A1:D1')
+
+    # General Instructions
+    ws_instructions.append([]) # Spacer
+    ws_instructions['A3'] = "General Rules"
+    ws_instructions['A3'].font = header_font
+    ws_instructions.append(["1. Fill in your payment data in the 'Data' sheet."])
+    ws_instructions.append(["2. Do NOT change the column headers in the 'Data' sheet."])
+    ws_instructions.append(["3. Delete the sample rows in the 'Data' sheet before uploading."])
+    ws_instructions.append(["4. Use YYYY-MM-DD format for dates."])
+    ws_instructions.append([]) # Spacer
+    
+    # Column Descriptions
+    ws_instructions['A9'] = "Column Guide"
+    ws_instructions['A9'].font = header_font
+    
+    headers = [
+        ("Column", "Description", "Example", "Required?"),
+        ("Date", "Payment date (YYYY-MM-DD).", timezone.now().strftime('%Y-%m-%d'), "Yes"),
+        ("Reference", "Invoice ID (to link) or Check #.", "'JOB-2A505259'", "No"),
+        ("Description", "Details about the payment.", "'Partial Payment'", "No"),
+        ("Payment", "Amount paid by customer.", "500.00", "Yes"),
+    ]
+    
+    for row_data in headers:
+        ws_instructions.append(row_data)
+
+    # Styling for instructions table
+    for cell in ws_instructions['A10:D10'][0]:
+        cell.font = Font(name='Calibri', bold=True)
+        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.alignment = Alignment(horizontal='center')
+    
+    for row in ws_instructions['A10:D14']:
+        for cell in row:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center')
+
+    for col_idx, width in enumerate([20, 40, 25, 20], 1):
+        ws_instructions.column_dimensions[get_column_letter(col_idx)].width = width
+    
+    # --- Create Data Sheet ---
+    ws_data = wb.create_sheet(title="Data")
+    data_headers = ['Date', 'Reference', 'Description', 'Payment']
+    ws_data.append(data_headers)
+    
+    # Sample Data
+    ws_data.append([timezone.now().strftime('%Y-%m-%d'), 'PAY-001', 'Partial Payment', 500.00])
+    
+    # Style header and set column widths
+    for i, cell in enumerate(ws_data['1:1'], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        ws_data.column_dimensions[get_column_letter(i)].width = 25
+
+    ws_data.freeze_panes = 'A2'
+    for row in ws_data['A1:D2']:
+        for cell in row:
+            cell.border = thin_border
+
+    # --- Prepare Response ---
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="ledger_import_template.xlsx"'
+    wb.save(response)
     return response
 
 class CustomerUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):

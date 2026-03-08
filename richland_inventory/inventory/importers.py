@@ -67,23 +67,26 @@ def import_ledger_entries_from_file(file_obj, customer, user):
                 try:
                     # 1. Parse Date
                     date_val = row.get('date')
-                    txn_date = None
+                    txn_date_obj = None
                     if isinstance(date_val, datetime):
-                        txn_date = date_val
+                        txn_date_obj = date_val
                     elif date_val:
                         for fmt in ('%Y-%m-%d', '%m/%d/%Y', '%m-%d-%Y'):
                             try:
-                                txn_date = datetime.strptime(str(date_val).split(' ')[0], fmt)
+                                txn_date_obj = datetime.strptime(str(date_val).split(' ')[0], fmt)
                                 break
                             except ValueError:
                                 continue
                     
-                    if not txn_date:
+                    if not txn_date_obj:
                         errors.append(f"Row {i}: Invalid or missing date '{date_val}'. Use YYYY-MM-DD format.")
                         continue
                     
-                    if not timezone.is_aware(txn_date):
-                        txn_date = timezone.make_aware(txn_date)
+                    # Combine the date from the file with the current time of upload.
+                    # This fixes the issue of all imported transactions being set to midnight.
+                    # Use localtime to ensure the time of upload reflects the user's timezone, not UTC.
+                    txn_date = datetime.combine(txn_date_obj.date(), timezone.localtime(timezone.now()).time())
+                    txn_date = timezone.make_aware(txn_date) # Make it timezone-aware using settings.TIME_ZONE
 
                     ref = row.get('reference', '').strip()
                     desc = row.get('description', '').strip()
@@ -92,37 +95,33 @@ def import_ledger_entries_from_file(file_obj, customer, user):
                     charge_val = Decimal(row.get('charge') or 0)
                     payment_val = Decimal(row.get('payment') or 0)
 
-                    if charge_val < 0 or payment_val < 0:
-                        errors.append(f"Row {i}: Charge and Payment values cannot be negative.")
+                    if payment_val < 0:
+                        errors.append(f"Row {i}: Payment value cannot be negative.")
                         continue
 
-                    if charge_val > 0 and payment_val > 0:
-                        errors.append(f"Row {i}: A single entry cannot be both a charge and a payment.")
-                        continue
-
-                    # 3. Handle CHARGE (Debit)
                     if charge_val > 0:
-                        if not ref:
-                            errors.append(f"Row {i}: 'reference' is required for charges.")
-                            continue
-                        if POSSale.objects.filter(receipt_id=ref).exists():
-                            errors.append(f"Row {i}: A charge with reference '{ref}' already exists.")
-                            continue
-                        
-                        POSSale.objects.create(
-                            receipt_id=ref, customer=customer, payment_method='CREDIT',
-                            total_amount=charge_val, amount_paid=0, change_given=0,
-                            timestamp=txn_date, notes=desc or f"Imported Charge from file.",
-                            cashier=user
-                        )
-                        count_charges += 1
+                        errors.append(f"Row {i}: Creating new charges via import is disabled. Only payments are allowed.")
+                        continue
 
-                    # 4. Handle PAYMENT (Credit)
-                    elif payment_val > 0:
+                    # 3. Handle PAYMENT (Credit)
+                    if payment_val > 0:
+                        sale_to_pay = None
+                        if ref:
+                            # A reference was provided, so we MUST find a matching invoice.
+                            sale_to_pay = POSSale.objects.filter(
+                                customer=customer, 
+                                receipt_id__iexact=ref
+                            ).first()
+                            
+                            if not sale_to_pay:
+                                # The reference was provided but it's invalid. This is an error.
+                                errors.append(f"Row {i}: Reference '{ref}' does not match any existing invoice for this customer.")
+                                continue # Skip to the next row
+
                         CustomerPayment.objects.create(
                             customer=customer, amount=payment_val, payment_date=txn_date,
                             reference_number=ref, notes=desc or f"Imported Payment from file.",
-                            recorded_by=user
+                            recorded_by=user, sale_paid=sale_to_pay
                         )
                         count_payments += 1
 
@@ -163,16 +162,29 @@ def import_sow_from_file(file_obj, customer, user):
                     cost_val = row.get('cost', '0').strip()
                     cost = Decimal(cost_val) if cost_val else Decimal('0.00')
 
-                    if not row.get('hose_type'):
-                        errors.append(f"Row {i}: 'hose_type' is a required field.")
+                    hose_type = row.get('hose_type', '').strip()
+                    diameter = row.get('diameter', '').strip()
+                    length = str(row.get('length', '')).strip()
+                    fitting_a = row.get('fitting_a', '').strip()
+                    fitting_b = row.get('fitting_b', '').strip()
+
+                    missing = []
+                    if not hose_type: missing.append("'Hose Type'")
+                    if not diameter: missing.append("'Diameter'")
+                    if not length: missing.append("'Length'")
+                    if not fitting_a: missing.append("'Fitting A'")
+                    if not fitting_b: missing.append("'Fitting B'")
+
+                    if missing:
+                        errors.append(f"Row {i}: Missing required field(s): {', '.join(missing)}.")
                         continue
 
                     HydraulicSow.objects.create(
-                        customer=customer, created_by=user, hose_type=row.get('hose_type', ''),
-                        diameter=row.get('diameter', ''), length=row.get('length') or None,
+                        customer=customer, created_by=user, hose_type=hose_type,
+                        diameter=diameter, length=length or None,
                         pressure=row.get('pressure') or None, cost=cost if cost > 0 else None,
-                        application=row.get('application', ''), fitting_a=row.get('fitting_a', ''),
-                        fitting_b=row.get('fitting_b', ''), notes=row.get('notes', '')
+                        application=row.get('application', ''), fitting_a=fitting_a,
+                        fitting_b=fitting_b, notes=row.get('notes', '')
                     )
                     count += 1
                 except (InvalidOperation, ValueError) as e:
