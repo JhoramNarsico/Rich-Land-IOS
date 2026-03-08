@@ -1,16 +1,12 @@
 from django.contrib import admin
 from django.utils import timezone
-from django.db import transaction, models
+from django.db import transaction
 from simple_history.admin import SimpleHistoryAdmin
 from .models import (
     Product, Category, StockTransaction, Supplier, PurchaseOrder, PurchaseOrderItem,
     Customer, CustomerPayment, HydraulicSow, POSSale, Expense, ExpenseCategory,
     PriceOverrideLog
 )
-from django.utils.html import format_html
-from django.urls import reverse
-from django.db.models.functions import Coalesce
-from decimal import Decimal
 from core.cache_utils import clear_dashboard_cache
 
 admin.site.site_header = "Rich Land Admin"
@@ -97,65 +93,34 @@ class HydraulicSowInline(admin.TabularInline):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'customer_id', 'email', 'phone', 'credit_limit', 'balance')
+    list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance')
     search_fields = ('name', 'customer_id', 'email', 'phone')
     inlines = [CustomerPaymentInline, HydraulicSowInline]
     readonly_fields = ('created_at', 'updated_at')
 
-    def get_queryset(self, request):
-        qs = super().get_queryset(request)
-        credit_sales = models.Sum('purchases__total_amount', filter=models.Q(purchases__payment_method='CREDIT'))
-        total_payments = models.Sum('payments__amount')
-        
-        qs = qs.annotate(
-            calculated_balance=models.ExpressionWrapper(
-                Coalesce(credit_sales, Decimal('0.00')) - Coalesce(total_payments, Decimal('0.00')),
-                output_field=models.DecimalField()
-            )
-        )
-        return qs
-
-    @admin.display(description='Current Balance', ordering='calculated_balance')
-    def balance(self, obj):
-        try:
-            # Ensure balance is a Decimal. Handle SafeString or None.
-            val = obj.calculated_balance
-            if val is None:
-                balance = Decimal('0.00')
-            else:
-                balance = Decimal(str(val))
-        except (ValueError, TypeError, Exception):
-            balance = Decimal('0.00')
-
-        color = "green" if balance <= 0 else "red"
-        return format_html('<span style="color: {}; font-weight: bold;">₱{}</span>', color, f"{balance:,.2f}")
+    @admin.display(description='Current Balance')
+    def current_balance(self, obj):
+        return f"{obj.get_balance():,.2f}"
 
 @admin.register(CustomerPayment)
 class CustomerPaymentAdmin(admin.ModelAdmin):
-    list_display = ('customer', 'amount', 'payment_date', 'reference_number', 'linked_sale', 'recorded_by')
+    list_display = ('customer', 'amount', 'payment_date', 'reference_number', 'sale_paid', 'recorded_by')
     list_filter = ('payment_date',)
     search_fields = ('customer__name', 'reference_number', 'sale_paid__receipt_id')
     autocomplete_fields = ('customer', 'sale_paid', 'recorded_by')
-    
-    @admin.display(description='Applied to Invoice', ordering='sale_paid')
-    def linked_sale(self, obj):
-        if obj.sale_paid:
-            link = reverse("admin:inventory_possale_change", args=[obj.sale_paid.id])
-            return format_html('<a href="{}">{}</a>', link, obj.sale_paid.receipt_id)
-        return "-"
 
 @admin.register(HydraulicSow)
 class HydraulicSowAdmin(admin.ModelAdmin):
-    list_display = ('sow_id', 'customer', 'date_created', 'application', 'hose_type', 'cost')
+    list_display = ('customer', 'date_created', 'application', 'hose_type')
     list_filter = ('date_created',)
-    search_fields = ('customer__name', 'application', 'notes', 'sow_id')
+    search_fields = ('customer__name', 'application', 'notes')
     autocomplete_fields = ('customer',)
 
 # --- Point of Sale ---
 
 @admin.register(POSSale)
 class POSSaleAdmin(admin.ModelAdmin):
-    list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'override_flag')
+    list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'has_price_override')
     list_filter = ('timestamp', 'payment_method', 'cashier', 'has_price_override')
     search_fields = ('receipt_id', 'customer__name')
     inlines = [StockTransactionInline]
@@ -164,10 +129,6 @@ class POSSaleAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         return False
-    
-    @admin.display(description='Override?', boolean=True)
-    def override_flag(self, obj):
-        return obj.has_price_override
     
     def has_change_permission(self, request, obj=None):
         return False
