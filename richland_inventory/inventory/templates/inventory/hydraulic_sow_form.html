@@ -11,24 +11,6 @@
                     <h4 class="mb-0 text-primary"><i class="fas fa-tools me-2"></i>{{ page_title|default:"Hydraulic Hose Scope of Work" }}</h4>
                     
                     <div class="d-flex align-items-center">
-                        <!-- Import/Export Toolbar -->
-                        <div class="btn-group me-3">
-                            <a href="{% url 'inventory:hydraulic_sow_import' %}" class="btn btn-sm btn-outline-success">
-                                <i class="fas fa-file-import me-1"></i> Import
-                            </a>
-                            <div class="btn-group">
-                                <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                                    <i class="fas fa-download me-1"></i> Export
-                                </button>
-                                <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="exportDropdown">
-                                    <li><a class="dropdown-item" href="?format=pdf"><i class="fas fa-file-pdf fa-fw me-2 text-danger"></i>PDF</a></li>
-                                    <li><a class="dropdown-item" href="?format=word"><i class="fas fa-file-word fa-fw me-2 text-primary"></i>Word</a></li>
-                                    <li><a class="dropdown-item" href="?format=excel"><i class="fas fa-file-excel fa-fw me-2 text-success"></i>Excel</a></li>
-                                    <li><a class="dropdown-item" href="?format=csv"><i class="fas fa-file-csv fa-fw me-2 text-info"></i>CSV</a></li>
-                                </ul>
-                            </div>
-                        </div>
-                        
                         <a href="{{ next_url|default:customer.get_absolute_url }}" class="btn-close" aria-label="Close"></a>
                     </div>
                 </div>

@@ -60,9 +60,15 @@
                 Total for {{ period_name }}: <span class="text-danger">₱{{ total_expenses|floatformat:2|intcomma }}</span>
             </h5>
             <div class="d-flex gap-2">
-                <a href="{% url 'inventory:expense_import' %}" class="btn btn-sm btn-outline-secondary">
-                    <i class="fas fa-file-import me-1"></i> Import
-                </a>
+                <div class="dropdown">
+                    <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown" title="Import Options">
+                        <i class="fas fa-file-import"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end border-0 shadow">
+                        <li><a class="dropdown-item" href="{% url 'inventory:expense_import' %}"><i class="fas fa-upload me-2 text-primary"></i>Upload File</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventory:download_expense_template' %}"><i class="fas fa-download me-2 text-secondary"></i>Download Template</a></li>
+                    </ul>
+                </div>
                 <div class="btn-group">
                     <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" id="exportDropdown" data-bs-toggle="dropdown" aria-expanded="false">
                         <i class="fas fa-download me-1"></i> Export

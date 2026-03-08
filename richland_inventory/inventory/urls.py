@@ -72,6 +72,7 @@ urlpatterns = [
     path('expenses/', views.ExpenseListView.as_view(), name='expense_list'),
     path('expenses/create/', views.ExpenseCreateView.as_view(), name='expense_create'),
     path('expenses/import/', views.import_expenses, name='expense_import'),
+    path('expenses/templates/download/', views.download_expense_template, name='download_expense_template'),
     path('expenses/<int:pk>/update/', views.ExpenseUpdateView.as_view(), name='expense_update'),
     path('expenses/<int:pk>/delete/', views.ExpenseDeleteView.as_view(), name='expense_delete'),
 ]

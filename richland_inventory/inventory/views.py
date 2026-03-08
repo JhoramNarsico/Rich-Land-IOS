@@ -48,7 +48,7 @@ from .exports import (
     generate_sow_history_export, generate_expense_report, generate_customer_list_export,
     generate_customer_statement, generate_inventory_csv, generate_supplier_deliveries_export
 )
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from core.cache_utils import clear_dashboard_cache
@@ -57,16 +57,6 @@ from . import importers as inventory_importers
 def hydraulic_sow_create(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     next_url = request.GET.get('next')
-    
-    # Handle Export Requests (PDF, Word, Excel, CSV)
-    export_format = request.GET.get('format')
-    if export_format:
-        # Placeholder for export logic
-        # You would generate the file here based on 'export_format'
-        response = HttpResponse(content_type='text/plain')
-        response['Content-Disposition'] = f'attachment; filename="sow_{customer.pk}.{export_format}"'
-        response.write(f"Exporting {export_format} for {customer.name}...")
-        return response
 
     if request.method == 'POST':
         cost_input = request.POST.get('cost')
@@ -505,6 +495,90 @@ def download_sow_template(request):
     wb.save(response)
     return response
 
+@login_required
+def download_expense_template(request):
+    """Downloads an Excel template for expense imports."""
+    wb = Workbook()
+    
+    # --- Create Instructions Sheet ---
+    ws_instructions = wb.active
+    ws_instructions.title = "Instructions"
+
+    # Styles
+    title_font = Font(name='Calibri', bold=True, size=16, color="1F4E78")
+    header_font = Font(name='Calibri', bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="4472C4", end_color="4472C4", fill_type="solid")
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    # Title
+    ws_instructions['A1'] = "How to Use This Import Template"
+    ws_instructions['A1'].font = title_font
+    ws_instructions.merge_cells('A1:D1')
+
+    # General Instructions
+    ws_instructions.append([]) 
+    ws_instructions['A3'] = "General Rules"
+    ws_instructions['A3'].font = header_font
+    ws_instructions.append(["1. Fill in your expense data in the 'Data' sheet."])
+    ws_instructions.append(["2. Do NOT change the column headers in the 'Data' sheet."])
+    ws_instructions.append(["3. Delete the sample rows before uploading."])
+    ws_instructions.append(["4. Use YYYY-MM-DD format for dates."])
+    ws_instructions.append([]) 
+    
+    # Column Descriptions
+    ws_instructions['A9'] = "Column Guide"
+    ws_instructions['A9'].font = header_font
+    
+    headers = [
+        ("Column", "Description", "Example", "Required?"),
+        ("Date", "Expense date (YYYY-MM-DD).", timezone.now().strftime('%Y-%m-%d'), "Yes"),
+        ("Category", "Expense Category (e.g. Rent, Utilities).", "'Utilities'", "No"),
+        ("Description", "Details about the expense.", "'Office Supplies'", "Yes"),
+        ("Amount", "Amount spent.", "150.00", "Yes"),
+    ]
+    
+    for row_data in headers:
+        ws_instructions.append(row_data)
+
+    # Styling
+    for cell in ws_instructions['A10:D10'][0]:
+        cell.font = Font(name='Calibri', bold=True)
+        cell.fill = PatternFill(start_color="DDEBF7", end_color="DDEBF7", fill_type="solid")
+        cell.alignment = Alignment(horizontal='center')
+    
+    for row in ws_instructions['A10:D14']:
+        for cell in row:
+            cell.border = thin_border
+            cell.alignment = Alignment(vertical='center')
+
+    for col_idx, width in enumerate([20, 40, 25, 20], 1):
+        ws_instructions.column_dimensions[get_column_letter(col_idx)].width = width
+    
+    # --- Create Data Sheet ---
+    ws_data = wb.create_sheet(title="Data")
+    data_headers = ['Date', 'Category', 'Description', 'Amount']
+    ws_data.append(data_headers)
+    
+    # Sample Data
+    ws_data.append([timezone.now().strftime('%Y-%m-%d'), 'Utilities', 'Electric Bill', 1500.00])
+    
+    # Style header
+    for i, cell in enumerate(ws_data['1:1'], 1):
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+        ws_data.column_dimensions[get_column_letter(i)].width = 25
+
+    ws_data.freeze_panes = 'A2'
+    for row in ws_data['A1:D2']:
+        for cell in row:
+            cell.border = thin_border
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="expense_import_template.xlsx"'
+    wb.save(response)
+    return response
+
 # --- EXPENSE MANAGEMENT ---
 
 class ExpenseListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -732,7 +806,10 @@ def import_expenses(request):
 from rest_framework import viewsets, permissions, filters
 from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
 
-from .serializers import ProductSerializer, CategorySerializer
+from .serializers import (
+    ProductSerializer, CategorySerializer, CustomerSerializer, CustomerPaymentSerializer,
+    HydraulicSowSerializer, POSSaleSerializer, ExpenseSerializer, ExpenseCategorySerializer
+)
 
 # --- AUTHENTICATION ---
 
@@ -2303,6 +2380,85 @@ class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name', 'sku']
+
+# --- NEW VIEWSETS ---
+
+@extend_schema(tags=['Customers & Billing'])
+class CustomerViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing Customers.
+    Provides full CRUD functionality for customer profiles.
+    The 'balance' is a read-only calculated field.
+    """
+    queryset = Customer.objects.all().order_by('name')
+    serializer_class = CustomerSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name', 'customer_id', 'email', 'phone']
+
+@extend_schema(tags=['Customers & Billing'])
+class CustomerPaymentViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing Customer Payments.
+    Allows creating, viewing, and managing payments.
+    'recorded_by' is automatically set to the logged-in user on creation.
+    """
+    queryset = CustomerPayment.objects.select_related('customer', 'recorded_by', 'sale_paid').all()
+    serializer_class = CustomerPaymentSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['customer__name', 'reference_number', 'sale_paid__receipt_id']
+
+    def perform_create(self, serializer):
+        serializer.save(recorded_by=self.request.user)
+
+@extend_schema(tags=['Customers & Billing'])
+class HydraulicSowViewSet(viewsets.ModelViewSet):
+    """
+    API endpoint for managing Hydraulic Scope of Work (SOW) jobs.
+    'created_by' is automatically set to the logged-in user on creation.
+    """
+    queryset = HydraulicSow.objects.select_related('customer', 'created_by').all()
+    serializer_class = HydraulicSowSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['sow_id', 'customer__name', 'application', 'hose_type']
+
+    def perform_create(self, serializer):
+        serializer.save(created_by=self.request.user)
+
+@extend_schema(tags=['Point of Sale'])
+class POSSaleViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for viewing Point of Sale (POS) transactions.
+    This is a read-only endpoint as sales are created through the POS checkout process.
+    """
+    queryset = POSSale.objects.select_related('cashier', 'customer').prefetch_related('items', 'items__product').all()
+    serializer_class = POSSaleSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['receipt_id', 'customer__name', 'cashier__username']
+
+@extend_schema(tags=['Expenses'])
+class ExpenseCategoryViewSet(viewsets.ModelViewSet):
+    """API endpoint for managing Expense Categories."""
+    queryset = ExpenseCategory.objects.all()
+    serializer_class = ExpenseCategorySerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['name']
+
+@extend_schema(tags=['Expenses'])
+class ExpenseViewSet(viewsets.ModelViewSet):
+    """API endpoint for managing Expenses. 'recorded_by' is automatically set to the logged-in user on creation."""
+    queryset = Expense.objects.select_related('category', 'recorded_by').all()
+    serializer_class = ExpenseSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['description', 'category__name']
+
+    def perform_create(self, serializer):
+        serializer.save(recorded_by=self.request.user)
 
 # --- AJAX HELPERS ---
 
