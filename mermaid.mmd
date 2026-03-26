@@ -13,20 +13,20 @@ flowchart TD
     end
 
     subgraph "CLIENT"
-        C["💻 End-Users\n(POS & Admin via Web Browser)"]:::client
+        C["💻 End-Users (POS & Admin via Web Browser)"]:::client
     end
 
-    subgraph "NETWORK (Render Edge)"
-        N["🌐 Load Balancer & CDN\n(Handles HTTPS, SSL, and Routing)"]:::network
+    subgraph "NETWORK (Render)"
+        N["🌐 Load Balancer & CDN (Handles HTTPS, SSL, and Routing)"]:::network
     end
 
     subgraph "SERVER (Render Compute)"
-        S["⚙️ Web Service\n(Runs Django/Gunicorn App Logic)"]:::server
+        S["⚙️ Web Service (Runs Django/Gunicorn App Logic)"]:::server
     end
 
     subgraph "DATABASE (Render Storage)"
-        D1[("🐘 PostgreSQL\n(Primary Data)")]:::database
-        D2[("⚡ Redis\n(Cache & Sessions)")]:::database
+        D1[("🐘 PostgreSQL (Primary Data)")]:::database
+        D2[("⚡ Redis (Cache & Sessions)")]:::database
     end
 
     %% --- Connections & Data Flow ---
