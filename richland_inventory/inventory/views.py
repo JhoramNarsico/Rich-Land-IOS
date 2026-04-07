@@ -1,5 +1,3 @@
-# inventory/views.py
-
 import csv
 import json
 import uuid
@@ -404,7 +402,6 @@ def import_sow_history(request, pk):
 
 @login_required
 def download_sow_template(request):
-    """Downloads a CSV template for SOW imports."""
     """Downloads an Excel template for SOW imports with instructions."""
     wb = Workbook()
     
@@ -1840,18 +1837,42 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 
 class POSReceiptDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = POSSale
-    template_name = 'inventory/pos_receipt.html'
     context_object_name = 'sale'
     permission_required = 'inventory.view_stocktransaction'
+    template_name = 'inventory/pos_receipt.html'
     
     def get_object(self):
         return get_object_or_404(POSSale, receipt_id=self.kwargs['receipt_id'])
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['items'] = self.object.items.select_related('product').annotate(
+        
+        # Fetch product items
+        items_qs = self.object.items.select_related('product').annotate(
             line_total=ExpressionWrapper(F('quantity') * F('selling_price'), output_field=DecimalField())
         )
+        items = list(items_qs)
+
+        # Fetch associated Hydraulic SOW specifications if this is a job receipt
+        is_job = self.object.receipt_id.startswith(('JOB-', 'SOW-'))
+        if is_job:
+            sow = HydraulicSow.objects.filter(sow_id=self.object.receipt_id).select_related('customer', 'created_by').first()
+            if sow:
+                context['sow'] = sow
+                
+                # Synthesize a service description item if no products are linked
+                if not items:
+                    service_desc = f"Hydraulic Service: {sow.hose_type} | Ø {sow.diameter} | {sow.fitting_a}/{sow.fitting_b}"
+                    if sow.application: service_desc += f" ({sow.application})"
+                    
+                    items.append({
+                        'product': {'name': service_desc, 'sku': sow.sow_id},
+                        'quantity': 1,
+                        'selling_price': self.object.total_amount,
+                        'line_total': self.object.total_amount
+                    })
+
+        context['items'] = items
         return context
 
 # --- ANALYTICS & REPORTS ---

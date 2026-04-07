@@ -83,14 +83,24 @@ class POSSaleSerializer(serializers.ModelSerializer):
     cashier_username = serializers.CharField(source='cashier.username', read_only=True)
     customer_name = serializers.CharField(source='customer.name', read_only=True)
     items = StockTransactionSerializer(many=True, read_only=True)
+    sow_details = serializers.SerializerMethodField()
 
     class Meta:
         model = POSSale
         fields = [
             'id', 'receipt_id', 'timestamp', 'cashier', 'cashier_username', 
             'customer', 'customer_name', 'payment_method', 'total_amount', 
-            'amount_paid', 'change_given', 'has_price_override', 'notes', 'items'
+            'amount_paid', 'change_given', 'has_price_override', 'notes', 'items',
+            'sow_details'
         ]
+
+    def get_sow_details(self, obj):
+        """If this is a job receipt, fetch the associated Hydraulic SOW data."""
+        if obj.receipt_id.startswith(('JOB-', 'SOW-')):
+            sow = HydraulicSow.objects.filter(sow_id=obj.receipt_id).select_related('customer', 'created_by').first()
+            if sow:
+                return HydraulicSowSerializer(sow).data
+        return None
 
 class ExpenseCategorySerializer(serializers.ModelSerializer):
     class Meta:

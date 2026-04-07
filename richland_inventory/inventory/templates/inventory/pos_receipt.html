@@ -92,7 +92,7 @@
                                 </tr>
                             </thead>
                             <tbody class="border-dark">
-                                {% for item in sale.items.all %}
+                                {% for item in items %}
                                 <tr>
                                     <td class="ps-2 py-2">{{ item.product.name }}</td>
                                     <td class="text-center py-2">{{ item.quantity }}</td>
@@ -104,9 +104,8 @@
                                         {% endif %}
                                     </td>
                                     <td class="text-end pe-2 py-2">
-                                        {% if item.selling_price %}
-                                        {% widthratio item.quantity 1 item.selling_price as total %}
-                                        {{ total|intcomma }}
+                                        {% if item.line_total %}
+                                        {{ item.line_total|intcomma }}
                                         {% else %}
                                         0.00
                                         {% endif %}
