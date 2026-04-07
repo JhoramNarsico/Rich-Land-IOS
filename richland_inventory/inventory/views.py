@@ -2590,6 +2590,16 @@ def process_history_records(history_records):
             prev_record_map[record.history_id] = last_record_for_product[product_id]
         # Store the current record as the "last seen" for the next iteration
         last_record_for_product[product_id] = record
+
+    # 4. Fetch Category names in bulk to resolve IDs in the change summary
+    category_ids = set()
+    for record in records_on_page:
+        if record.category_id:
+            category_ids.add(record.category_id)
+        prev = prev_record_map.get(record.history_id)
+        if prev and prev.category_id:
+            category_ids.add(prev.category_id)
+    categories_map = Category.objects.filter(id__in=category_ids).in_bulk()
     # --- END OPTIMIZATION ---
 
     for record in records_on_page:
@@ -2619,7 +2629,16 @@ def process_history_records(history_records):
                     if field in ['slug', 'date_updated']:
                         continue
                     
-                    changes.append(f"<strong>{field.replace('_', ' ').title()}:</strong> {change.old} &rarr; {change.new}")
+                    old_val = change.old
+                    new_val = change.new
+                    
+                    if field == 'category':
+                        old_cat = categories_map.get(old_val)
+                        new_cat = categories_map.get(new_val)
+                        old_val = old_cat.name if old_cat else "None"
+                        new_val = new_cat.name if new_cat else "None"
+
+                    changes.append(f"<strong>{field.replace('_', ' ').title()}:</strong> {old_val} &rarr; {new_val}")
                     
                     if field == 'price': affected_fields.append("Price")
                     elif field == 'quantity': affected_fields.append("Stock")
