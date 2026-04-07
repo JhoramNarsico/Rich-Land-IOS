@@ -2370,11 +2370,13 @@ def import_supplier_deliveries(request, pk):
 
 @extend_schema(tags=['Inventory Management'])
 class CategoryViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
 
 class ProductViewSet(viewsets.ModelViewSet):
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Product.objects.all()
     serializer_class = ProductSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2390,6 +2392,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     Provides full CRUD functionality for customer profiles.
     The 'balance' is a read-only calculated field.
     """
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Customer.objects.all().order_by('name')
     serializer_class = CustomerSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2403,6 +2406,7 @@ class CustomerPaymentViewSet(viewsets.ModelViewSet):
     Allows creating, viewing, and managing payments.
     'recorded_by' is automatically set to the logged-in user on creation.
     """
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = CustomerPayment.objects.select_related('customer', 'recorded_by', 'sale_paid').all()
     serializer_class = CustomerPaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2418,6 +2422,7 @@ class HydraulicSowViewSet(viewsets.ModelViewSet):
     API endpoint for managing Hydraulic Scope of Work (SOW) jobs.
     'created_by' is automatically set to the logged-in user on creation.
     """
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = HydraulicSow.objects.select_related('customer', 'created_by').all()
     serializer_class = HydraulicSowSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2442,6 +2447,7 @@ class POSSaleViewSet(viewsets.ReadOnlyModelViewSet):
 @extend_schema(tags=['Expenses'])
 class ExpenseCategoryViewSet(viewsets.ModelViewSet):
     """API endpoint for managing Expense Categories."""
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = ExpenseCategory.objects.all()
     serializer_class = ExpenseCategorySerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2451,6 +2457,7 @@ class ExpenseCategoryViewSet(viewsets.ModelViewSet):
 @extend_schema(tags=['Expenses'])
 class ExpenseViewSet(viewsets.ModelViewSet):
     """API endpoint for managing Expenses. 'recorded_by' is automatically set to the logged-in user on creation."""
+    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Expense.objects.select_related('category', 'recorded_by').all()
     serializer_class = ExpenseSerializer
     permission_classes = [permissions.IsAuthenticated]
