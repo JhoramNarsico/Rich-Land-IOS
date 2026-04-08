@@ -13,11 +13,6 @@ from inventory.models import Product, StockTransaction
 def home(request):
     """View for the homepage dashboard with trends and caching."""
     
-    # --- ROLE-BASED REDIRECTION ---
-    # If the user is only a Salesman, redirect them to the POS terminal immediately.
-    if request.user.groups.filter(name='Salesman').exists() and not request.user.is_superuser:
-        return redirect('inventory:pos_dashboard')
-
     # --- PART 1: LIVE DATA (Critical Alerts) ---
     active_products = Product.objects.filter(status=Product.Status.ACTIVE)
     
