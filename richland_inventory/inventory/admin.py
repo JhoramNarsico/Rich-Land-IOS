@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.utils import timezone
 from django.db import transaction
-from django.db.models import Sum, Q, DecimalField
+from django.db.models import Sum, Q, DecimalField, OuterRef, Subquery, F
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 from simple_history.admin import SimpleHistoryAdmin
@@ -126,13 +126,27 @@ class CustomerAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'updated_at')
 
     def get_queryset(self, request):
-        # Optimized to avoid N+1 queries for balance calculation
+        # Optimized to avoid Cartesian product issues when summing multiple relations
         qs = super().get_queryset(request)
-        credit_sales = Sum('purchases__total_amount', filter=Q(purchases__payment_method='CREDIT'))
-        total_payments = Sum('payments__amount')
+        
+        credit_sales_subquery = POSSale.objects.filter(
+            customer=OuterRef('pk'),
+            payment_method='CREDIT'
+        ).values('customer').annotate(
+            total=Sum('total_amount')
+        ).values('total')
+
+        payments_subquery = CustomerPayment.objects.filter(
+            customer=OuterRef('pk')
+        ).values('customer').annotate(
+            total=Sum('amount')
+        ).values('total')
+
         return qs.annotate(
-            _balance=Coalesce(credit_sales, Decimal('0'), output_field=DecimalField()) - 
-                     Coalesce(total_payments, Decimal('0'), output_field=DecimalField())
+            _total_credit_sales=Coalesce(Subquery(credit_sales_subquery), Decimal('0.00'), output_field=DecimalField()),
+            _total_payments_made=Coalesce(Subquery(payments_subquery), Decimal('0.00'), output_field=DecimalField())
+        ).annotate(
+            _balance=F('_total_credit_sales') - F('_total_payments_made')
         )
 
     @admin.display(description='Current Balance', ordering='_balance')

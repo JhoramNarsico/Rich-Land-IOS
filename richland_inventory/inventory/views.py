@@ -13,7 +13,7 @@ from django.contrib.auth.decorators import login_required, permission_required
 from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db import transaction
-from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value
+from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value, OuterRef, Subquery
 from django.db.models.functions import TruncDate, Coalesce
 from django.urls import reverse_lazy, reverse
 from django.shortcuts import redirect, get_object_or_404, render
@@ -836,13 +836,23 @@ class CustomerListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     permission_required = 'inventory.view_customer'
 
     def get_queryset(self):
-        # Annotate with total credit sales and total payments to avoid N+1 queries from get_balance()
-        credit_sales = Sum('purchases__total_amount', filter=Q(purchases__payment_method='CREDIT'))
-        total_payments = Sum('payments__amount')
-        
+        # Optimized to avoid Cartesian product issues when summing multiple relations
+        credit_sales_subquery = POSSale.objects.filter(
+            customer=OuterRef('pk'),
+            payment_method='CREDIT'
+        ).values('customer').annotate(
+            total=Sum('total_amount')
+        ).values('total')
+
+        payments_subquery = CustomerPayment.objects.filter(
+            customer=OuterRef('pk')
+        ).values('customer').annotate(
+            total=Sum('amount')
+        ).values('total')
+
         qs = Customer.objects.exclude(name="Walk-in Customer").annotate(
-            total_credit_sales=Coalesce(credit_sales, Decimal('0.00')),
-            total_payments_made=Coalesce(total_payments, Decimal('0.00'))
+            total_credit_sales=Coalesce(Subquery(credit_sales_subquery), Decimal('0.00'), output_field=DecimalField()),
+            total_payments_made=Coalesce(Subquery(payments_subquery), Decimal('0.00'), output_field=DecimalField())
         ).annotate(
             balance=F('total_credit_sales') - F('total_payments_made')
         ).order_by('name')
