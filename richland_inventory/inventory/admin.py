@@ -202,3 +202,46 @@ class ExpenseAdmin(admin.ModelAdmin):
     search_fields = ('description', 'category__name')
     autocomplete_fields = ('category', 'recorded_by')
     date_hierarchy = 'expense_date'
+
+# --- User & Group Management (Simplified for Owner) ---
+
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+
+admin.site.unregister(User)
+admin.site.unregister(Group)
+
+@admin.register(User)
+class UserAdmin(BaseUserAdmin):
+    """
+    Custom UserAdmin that makes role (Group) assignment easier.
+    Permissions are moved to a collapsed section.
+    """
+    list_display = ('username', 'email', 'first_name', 'last_name', 'is_staff', 'get_groups')
+    filter_horizontal = ('groups', 'user_permissions')
+    
+    def get_groups(self, obj):
+        return ", ".join([g.name for g in obj.groups.all()])
+    get_groups.short_description = 'Roles (Groups)'
+
+    fieldsets = (
+        (None, {'fields': ('username', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
+        ('Roles & Access', {
+            'fields': ('is_active', 'is_staff', 'is_superuser', 'groups'),
+            'description': 'Assign user to a Group (e.g., Manager, Cashier) to grant permissions automatically.'
+        }),
+        ('Advanced Permissions', {
+            'classes': ('collapse',),
+            'fields': ('user_permissions',),
+        }),
+        ('Important dates', {'fields': ('last_login', 'date_joined')}),
+    )
+
+@admin.register(Group)
+class GroupAdmin(BaseGroupAdmin):
+    """
+    Custom GroupAdmin with filter_horizontal for permissions.
+    """
+    filter_horizontal = ('permissions',)
