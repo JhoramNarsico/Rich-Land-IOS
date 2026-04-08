@@ -52,6 +52,8 @@ from openpyxl.utils import get_column_letter
 from core.cache_utils import clear_dashboard_cache
 from . import importers as inventory_importers
 
+@login_required
+@permission_required('inventory.add_hydraulicsow', raise_exception=True)
 def hydraulic_sow_create(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     next_url = request.GET.get('next')
@@ -182,6 +184,7 @@ def hydraulic_sow_create(request, pk):
     })
 
 @login_required
+@permission_required('inventory.change_hydraulicsow', raise_exception=True)
 def hydraulic_sow_update(request, pk, sow_pk):
     customer = get_object_or_404(Customer, pk=pk)
     sow = get_object_or_404(HydraulicSow, pk=sow_pk, customer=customer)
@@ -314,6 +317,8 @@ def hydraulic_sow_update(request, pk, sow_pk):
     
     return render(request, 'inventory/hydraulic_sow_form.html', {'customer': customer, 'sow': sow, 'page_title': f'Edit Hydraulic SOW {sow.sow_id or sow.id}', 'is_charged': ledger_entry is not None})
 
+@login_required
+@permission_required('inventory.add_hydraulicsow', raise_exception=True)
 def hydraulic_sow_import(request):
     if request.method == 'POST':
         # Handle file upload and parsing logic here
@@ -326,6 +331,7 @@ def hydraulic_sow_import(request):
     })
 
 @login_required
+@permission_required('inventory.view_hydraulicsow', raise_exception=True)
 def export_sow_history(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     format_type = request.GET.get('format', 'pdf')
@@ -350,6 +356,7 @@ def export_sow_history(request, pk):
     return HttpResponse("Error Generating Export", status=500)
 
 @login_required
+@permission_required('inventory.add_hydraulicsow', raise_exception=True)
 def import_sow_history(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     
@@ -821,11 +828,12 @@ class CustomLoginView(LoginView):
 
 # --- CUSTOMER & BILLING MANAGEMENT ---
 
-class CustomerListView(LoginRequiredMixin, ListView):
+class CustomerListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Customer
     template_name = 'inventory/customer_list.html'
     context_object_name = 'customers'
     paginate_by = 20
+    permission_required = 'inventory.view_customer'
 
     def get_queryset(self):
         # Annotate with total credit sales and total payments to avoid N+1 queries from get_balance()
@@ -891,6 +899,7 @@ class CustomerListView(LoginRequiredMixin, ListView):
 
 @login_required
 @require_POST
+@permission_required('inventory.add_customerpayment', raise_exception=True)
 def customer_payment(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     form = CustomerPaymentForm(request.POST, customer=customer)
@@ -925,6 +934,7 @@ def customer_payment(request, pk):
     return redirect('inventory:customer_detail', pk=pk)
 
 @login_required
+@permission_required('inventory.add_customerpayment', raise_exception=True)
 def import_ledger_entries(request, pk):
     """Import Ledger Entries (Charges/Payments) from CSV/Excel"""
     customer = get_object_or_404(Customer, pk=pk)
@@ -1063,11 +1073,12 @@ def download_ledger_template(request):
     wb.save(response)
     return response
 
-class CustomerUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
+class CustomerUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Customer
     form_class = CustomerForm
     template_name = 'inventory/customer_form.html'
     success_message = "Customer profile for '%(name)s' updated successfully."
+    permission_required = 'inventory.change_customer'
     
     def get_success_url(self):
         return reverse_lazy('inventory:customer_detail', kwargs={'pk': self.object.pk})
@@ -1077,9 +1088,10 @@ class CustomerUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         context['page_title'] = f"Edit: {self.object.name}"
         return context
 
-class CustomerDetailView(LoginRequiredMixin, DetailView):
+class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = Customer
     template_name = 'inventory/customer_detail.html'
+    permission_required = 'inventory.view_customer'
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -1269,6 +1281,7 @@ class CustomerDetailView(LoginRequiredMixin, DetailView):
 # --- BILLING STATEMENT EXPORT (Word, Excel, PDF, CSV) ---
 
 @login_required
+@permission_required('inventory.view_customer', raise_exception=True)
 def export_statement(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     format_type = request.GET.get('format', 'pdf')
@@ -1568,7 +1581,7 @@ def get_walkin_customer():
     return customer
 
 @login_required
-@permission_required('inventory.can_adjust_stock', raise_exception=True)
+@permission_required('inventory.add_possale', raise_exception=True)
 def pos_dashboard(request):
     # Products
     active_products_qs = Product.objects.filter(status=Product.Status.ACTIVE, quantity__gt=0).values(
@@ -1607,6 +1620,7 @@ def pos_dashboard(request):
     return render(request, 'inventory/pos.html', context)
 
 @login_required
+@permission_required('inventory.add_hydraulicsow', raise_exception=True)
 def pos_sow_create(request):
     walkin = get_walkin_customer()
     # Redirect to SOW create with next=pos_dashboard
@@ -1616,6 +1630,7 @@ def pos_sow_create(request):
 
 @login_required
 @require_POST
+@permission_required('inventory.add_possale', raise_exception=True)
 def pos_checkout(request):
     try:
         data = json.loads(request.body)
@@ -1795,7 +1810,7 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     template_name = 'inventory/pos_history.html'
     context_object_name = 'sales'
     paginate_by = 20
-    permission_required = 'inventory.view_stocktransaction'
+    permission_required = 'inventory.view_possale'
     
     def get_queryset(self):
         qs = POSSale.objects.filter(
@@ -1838,7 +1853,7 @@ class POSHistoryListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
 class POSReceiptDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
     model = POSSale
     context_object_name = 'sale'
-    permission_required = 'inventory.view_stocktransaction'
+    permission_required = 'inventory.view_possale'
     template_name = 'inventory/pos_receipt.html'
     
     def get_object(self):
@@ -1992,6 +2007,7 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         return redirect('inventory:reporting')
 
 @login_required
+@permission_required('inventory.can_view_reports', raise_exception=True)
 def analytics_dashboard(request):
     # 1. Date Filtering
     today = timezone.now().date()
@@ -2249,10 +2265,11 @@ def receive_purchase_order(request, pk):
         messages.success(request, f"Stock from PO #{po.id} added.")
     return redirect('inventory:purchaseorder_list')
 
-class SupplierListView(LoginRequiredMixin, ListView):
+class SupplierListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     model = Supplier
     template_name = 'inventory/supplier_list.html'
     paginate_by = 10
+    permission_required = 'inventory.view_supplier'
 
     def get_queryset(self):
         queryset = super().get_queryset().order_by('name')

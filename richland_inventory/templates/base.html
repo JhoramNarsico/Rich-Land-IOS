@@ -196,30 +196,38 @@
                     {% endif %}
                     
                     <!-- Procurement Dropdown -->
-                    {% if perms.inventory.view_purchaseorder %}
+                    {% if perms.inventory.view_purchaseorder or perms.inventory.view_supplier %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-truck me-1"></i> Procurement</a>
                         <ul class="dropdown-menu">
+                            {% if perms.inventory.view_purchaseorder %}
                             <li><a class="dropdown-item" href="{% url 'inventory:purchaseorder_list' %}">Purchase Orders</a></li>
+                            {% endif %}
+                            {% if perms.inventory.view_supplier %}
                             <li><a class="dropdown-item" href="{% url 'inventory:supplier_list' %}">Suppliers</a></li>
+                            {% endif %}
                         </ul>
                     </li>
                     {% endif %}
                     
                     <!-- NEW CUSTOMERS / BILLING TAB -->
+                    {% if perms.inventory.view_customer %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'inventory:customer_list' %}">
                             <i class="fas fa-users me-1"></i> Customers
                         </a>
                     </li>
+                    {% endif %}
                     
                     <!-- Insights Dropdown -->
-                    {% if perms.inventory.can_view_reports %}
+                    {% if perms.inventory.can_view_reports or perms.inventory.view_expense %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown"><i class="fas fa-chart-pie me-1"></i> Insights</a>
                         <ul class="dropdown-menu">
+                            {% if perms.inventory.can_view_reports %}
                             <li><a class="dropdown-item" href="{% url 'inventory:analytics' %}">Analytics</a></li>
                             <li><a class="dropdown-item" href="{% url 'inventory:reporting' %}">Reports</a></li>
+                            {% endif %}
                             {% if perms.inventory.view_expense %}
                             <li><a class="dropdown-item" href="{% url 'inventory:expense_list' %}">Expenses</a></li>
                             {% endif %}
@@ -228,7 +236,7 @@
                     {% endif %}
                     
                     <!-- POS Dropdown -->
-                    {% if perms.inventory.can_adjust_stock %}
+                    {% if perms.inventory.add_possale or perms.inventory.view_possale %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle text-warning fw-bold" href="#" role="button" data-bs-toggle="dropdown">
                             <i class="fas fa-cash-register me-1"></i> POS
