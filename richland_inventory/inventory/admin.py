@@ -1,6 +1,9 @@
 from django.contrib import admin
 from django.utils import timezone
 from django.db import transaction
+from django.db.models import Sum, Q, DecimalField
+from django.db.models.functions import Coalesce
+from decimal import Decimal
 from simple_history.admin import SimpleHistoryAdmin
 from .models import (
     Product, Category, StockTransaction, Supplier, PurchaseOrder, PurchaseOrderItem,
@@ -41,6 +44,14 @@ class ProductAdmin(SimpleHistoryAdmin):
     history_list_display = ["status", "quantity", "price"]
     autocomplete_fields = ('category',)
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        clear_dashboard_cache()
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        clear_dashboard_cache()
+
     def get_readonly_fields(self, request, obj=None):
         if obj: # On the change form, make quantity readonly
             return ('quantity',)
@@ -65,6 +76,22 @@ class StockTransactionAdmin(admin.ModelAdmin):
     search_fields = ('product__name', 'pos_sale__receipt_id', 'notes')
     autocomplete_fields = ('product', 'user', 'pos_sale')
     date_hierarchy = 'timestamp'
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        clear_dashboard_cache()
+
+    def delete_model(self, request, obj):
+        # Restore stock if a transaction is manually deleted (e.g. error correction)
+        with transaction.atomic():
+            product = obj.product
+            if obj.transaction_type == 'IN':
+                product.quantity -= obj.quantity
+            else:
+                product.quantity += obj.quantity
+            product.save()
+            super().delete_model(request, obj)
+            clear_dashboard_cache()
 
     def has_add_permission(self, request):
         return False
@@ -93,14 +120,24 @@ class HydraulicSowInline(admin.TabularInline):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance')
+    list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance_display')
     search_fields = ('name', 'customer_id', 'email', 'phone')
     inlines = [CustomerPaymentInline, HydraulicSowInline]
     readonly_fields = ('created_at', 'updated_at')
 
-    @admin.display(description='Current Balance')
-    def current_balance(self, obj):
-        return f"{obj.get_balance():,.2f}"
+    def get_queryset(self, request):
+        # Optimized to avoid N+1 queries for balance calculation
+        qs = super().get_queryset(request)
+        credit_sales = Sum('purchases__total_amount', filter=Q(purchases__payment_method='CREDIT'))
+        total_payments = Sum('payments__amount')
+        return qs.annotate(
+            _balance=Coalesce(credit_sales, Decimal('0'), output_field=DecimalField()) - 
+                     Coalesce(total_payments, Decimal('0'), output_field=DecimalField())
+        )
+
+    @admin.display(description='Current Balance', ordering='_balance')
+    def current_balance_display(self, obj):
+        return f"{obj._balance:,.2f}"
 
 @admin.register(CustomerPayment)
 class CustomerPaymentAdmin(admin.ModelAdmin):
@@ -108,6 +145,10 @@ class CustomerPaymentAdmin(admin.ModelAdmin):
     list_filter = ('payment_date',)
     search_fields = ('customer__name', 'reference_number', 'sale_paid__receipt_id')
     autocomplete_fields = ('customer', 'sale_paid', 'recorded_by')
+
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        clear_dashboard_cache()
 
 @admin.register(HydraulicSow)
 class HydraulicSowAdmin(admin.ModelAdmin):
@@ -126,6 +167,16 @@ class POSSaleAdmin(admin.ModelAdmin):
     inlines = [StockTransactionInline]
     autocomplete_fields = ('customer', 'cashier')
     date_hierarchy = 'timestamp'
+
+    def delete_model(self, request, obj):
+        # Crucial: Restore stock when a sale is deleted from the admin
+        with transaction.atomic():
+            for item in obj.items.all():
+                product = item.product
+                product.quantity += item.quantity
+                product.save()
+            super().delete_model(request, obj)
+            clear_dashboard_cache()
 
     def has_add_permission(self, request):
         return False
@@ -156,7 +207,7 @@ class PurchaseOrderItemInline(admin.TabularInline):
     model = PurchaseOrderItem
     extra = 1
     autocomplete_fields = ['product']
-    readonly_fields = ('price', 'line_total_display')
+    readonly_fields = ('line_total_display',) # price is NOT readonly so it can be edited/set
     fields = ('product', 'quantity', 'price', 'line_total_display')
 
     def line_total_display(self, instance):
@@ -179,14 +230,19 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     date_hierarchy = 'order_date'
     autocomplete_fields = ('supplier',)
 
-    def save_formset(self, request, form, formset, change):
-        instances = formset.save(commit=False)
-        for instance in instances:
-            if isinstance(instance, PurchaseOrderItem):
-                if instance.price is None and instance.product:
-                    instance.price = instance.product.price
-            instance.save()
-        formset.save_m2m()
+    def save_model(self, request, obj, form, change):
+        if change:
+            # Detect if status was changed to RECEIVED in the admin
+            original = PurchaseOrder.objects.get(pk=obj.pk)
+            if original.status != 'RECEIVED' and obj.status == 'RECEIVED':
+                # Trigger the stock-in logic
+                obj.status = original.status # Temporarily revert to trigger correctly
+                obj.complete_order(request.user)
+                clear_dashboard_cache()
+                return # complete_order handles the save
+        
+        super().save_model(request, obj, form, change)
+        clear_dashboard_cache()
 
 # --- Expenses ---
 
@@ -203,14 +259,25 @@ class ExpenseAdmin(admin.ModelAdmin):
     autocomplete_fields = ('category', 'recorded_by')
     date_hierarchy = 'expense_date'
 
+    def save_model(self, request, obj, form, change):
+        super().save_model(request, obj, form, change)
+        clear_dashboard_cache()
+
+    def delete_model(self, request, obj):
+        super().delete_model(request, obj)
+        clear_dashboard_cache()
+
 # --- User & Group Management (Simplified for Owner) ---
 
 from django.contrib.auth.models import User, Group
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
 
-admin.site.unregister(User)
-admin.site.unregister(Group)
+# Robustly unregister default models
+if admin.site.is_registered(User):
+    admin.site.unregister(User)
+if admin.site.is_registered(Group):
+    admin.site.unregister(Group)
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
@@ -230,7 +297,7 @@ class UserAdmin(BaseUserAdmin):
         ('Personal info', {'fields': ('first_name', 'last_name', 'email')}),
         ('Roles & Access', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups'),
-            'description': 'Assign user to a Group (e.g., Manager, Cashier) to grant permissions automatically.'
+            'description': 'Assign user to a Group (e.g., Manager, Salesman) to grant permissions automatically.'
         }),
         ('Advanced Permissions', {
             'classes': ('collapse',),
