@@ -91,8 +91,8 @@
                 <td>{{ customer.email|default:"N/A" }}</td>
                 <td>{{ customer.phone|default:"N/A" }}</td>
                 <td>{{ customer.address|default:"N/A" }}</td>
-                <td class="text-right">₱{{ customer.credit_limit|floatformat:2|intcomma }}</td>
-                <td class="text-right bold">₱{{ customer.get_balance|floatformat:2|intcomma }}</td>
+                <td class="text-right">PHP {{ customer.credit_limit|floatformat:2|intcomma }}</td>
+                <td class="text-right bold">PHP {{ customer.get_balance|floatformat:2|intcomma }}</td>
             </tr>
             {% empty %}
             <tr>
