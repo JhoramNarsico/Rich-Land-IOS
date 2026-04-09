@@ -18,6 +18,7 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_ORIENT
+from docx.enum.table import WD_ALIGN_VERTICAL
 from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
 
@@ -25,15 +26,23 @@ from .utils import render_to_pdf
 
 # --- HELPERS ---
 
-def setup_word_document_margins(document):
-    """Sets very narrow margins (0.25 inch) and Letter size (8.5x11) for the document."""
+def apply_standard_word_style(document, landscape=False):
+    """Applies standard page setup and margins."""
     section = document.sections[0]
-    section.page_width = Inches(8.5)
-    section.page_height = Inches(11)
+    if landscape:
+        section.orientation = WD_ORIENT.LANDSCAPE
+        section.page_width = Inches(11)
+        section.page_height = Inches(8.5)
+    else:
+        section.orientation = WD_ORIENT.PORTRAIT
+        section.page_width = Inches(8.5)
+        section.page_height = Inches(11)
+
     section.left_margin = Inches(0.25)
     section.right_margin = Inches(0.25)
     section.top_margin = Inches(0.25)
     section.bottom_margin = Inches(0.25)
+
 
 def set_cell_background(cell, color_hex):
     """Helper to set background color of a Word table cell."""
@@ -49,12 +58,11 @@ def add_excel_logo(ws):
         img.height = 60
         ws.add_image(img, 'A1')
 
-def create_header(document, title, subtitle_lines=[], width_inches=7.8):
+def create_header(document, title, subtitle_lines=[], width_inches=8.0):
     """Creates a professional header with Company Name and Report Details."""
     table = document.add_table(rows=1, cols=2)
     table.autofit = False
     table.allow_autofit = False
-    # Usable width approx width_inches (leaving slight buffer).
     table.columns[0].width = Inches(width_inches / 2)
     table.columns[1].width = Inches(width_inches / 2)
     
@@ -100,6 +108,7 @@ def style_table_header(row, headers):
     """Styles the header row of a table."""
     for i, text in enumerate(headers):
         cell = row.cells[i]
+        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
         set_cell_background(cell, "2C3E50")
         cell.text = ""
         p = cell.paragraphs[0]
@@ -129,13 +138,16 @@ def generate_sow_history_export(customer, sows, format_type, request):
         header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
         total_font = Font(name='Arial', size=11, bold=True)
         thin_border = Border(left=Side(style='thin', color="BDC3C7"), right=Side(style='thin', color="BDC3C7"), top=Side(style='thin', color="BDC3C7"), bottom=Side(style='thin', color="BDC3C7"))
+        data_alignment = Alignment(vertical='center', wrap_text=True)
+        data_alignment_right = Alignment(horizontal='right', vertical='center')
+
 
         # Report Header
         add_excel_logo(ws)
         ws.merge_cells('B1:D1'); ws['B1'] = "Rich Land Auto Supply"; ws['B1'].font = title_font; ws['B1'].alignment = Alignment(horizontal='left', vertical='center')
-        ws.merge_cells('E1:G1'); ws['E1'] = "HYDRAULIC SOW HISTORY"; ws['E1'].font = subtitle_font; ws['E1'].alignment = Alignment(horizontal='right', vertical='center')
-        ws.merge_cells('E2:G2'); ws['E2'] = f"Customer: {customer.name}"; ws['E2'].font = info_font; ws['E2'].alignment = Alignment(horizontal='right')
-        ws.merge_cells('E3:G3'); ws['E3'] = f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"; ws['E3'].font = info_font; ws['E3'].alignment = Alignment(horizontal='right')
+        ws.merge_cells('E1:H1'); ws['E1'] = "HYDRAULIC SOW HISTORY"; ws['E1'].font = subtitle_font; ws['E1'].alignment = Alignment(horizontal='right', vertical='center')
+        ws.merge_cells('E2:H2'); ws['E2'] = f"Customer: {customer.name}"; ws['E2'].font = info_font; ws['E2'].alignment = Alignment(horizontal='right')
+        ws.merge_cells('E3:H3'); ws['E3'] = f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"; ws['E3'].font = info_font; ws['E3'].alignment = Alignment(horizontal='right')
         ws.row_dimensions[1].height = 30
 
         # Table Headers
@@ -159,22 +171,22 @@ def generate_sow_history_export(customer, sows, format_type, request):
             hose_details = f"{sow.hose_type or '-'} | Ø {sow.diameter or '?'} | L: {sow.length or '?'}mm | P: {sow.pressure or '?'} PSI"
             fittings = f"A: {sow.fitting_a or '-'} | B: {sow.fitting_b or '-'}"
 
-            ws.cell(row=current_row, column=1, value=sow.sow_id or sow.id)
-            ws.cell(row=current_row, column=2, value=sow.date_created.strftime('%Y-%m-%d %H:%M'))
-            ws.cell(row=current_row, column=3, value=sow.application or '-')
-            ws.cell(row=current_row, column=4, value=hose_details)
-            ws.cell(row=current_row, column=5, value=fittings)
-            ws.cell(row=current_row, column=6, value=sow.cost).number_format = '#,##0.00'
-            ws.cell(row=current_row, column=7, value=sow.notes or '-')
-            ws.cell(row=current_row, column=8, value=sow.created_by.username if sow.created_by else 'N/A')
+            ws.cell(row=current_row, column=1, value=sow.sow_id or sow.id).alignment = data_alignment
+            ws.cell(row=current_row, column=2, value=sow.date_created.strftime('%Y-%m-%d %H:%M')).alignment = data_alignment
+            ws.cell(row=current_row, column=3, value=sow.application or '-').alignment = data_alignment
+            ws.cell(row=current_row, column=4, value=hose_details).alignment = data_alignment
+            ws.cell(row=current_row, column=5, value=fittings).alignment = data_alignment
+            c6 = ws.cell(row=current_row, column=6, value=sow.cost); c6.number_format = '#,##0.00'; c6.alignment = data_alignment_right
+            ws.cell(row=current_row, column=7, value=sow.notes or '-').alignment = data_alignment
+            ws.cell(row=current_row, column=8, value=sow.created_by.username if sow.created_by else 'N/A').alignment = data_alignment
 
             for col in range(1, 9):
                 ws.cell(row=current_row, column=col).border = thin_border
 
         # Total Row
         current_row += 2
-        total_label_cell = ws[f'D{current_row}']; total_label_cell.value = "Total Service Cost:"; total_label_cell.font = total_font; total_label_cell.alignment = Alignment(horizontal='right')
-        total_value_cell = ws[f'E{current_row}']; total_value_cell.value = total_cost; total_value_cell.font = total_font; total_value_cell.number_format = '"PHP" #,##0.00'
+        total_label_cell = ws[f'E{current_row}']; total_label_cell.value = "Total Service Cost:"; total_label_cell.font = total_font; total_label_cell.alignment = Alignment(horizontal='right')
+        total_value_cell = ws[f'F{current_row}']; total_value_cell.value = total_cost; total_value_cell.font = total_font; total_value_cell.number_format = '"PHP" #,##0.00'
 
         # Column Widths
         ws.column_dimensions['A'].width = 15; ws.column_dimensions['B'].width = 18; ws.column_dimensions['C'].width = 25
@@ -188,12 +200,7 @@ def generate_sow_history_export(customer, sows, format_type, request):
 
     elif format_type == 'word':
         document = Document()
-        setup_word_document_margins(document)
-        # Switch to Landscape to match Supplier Detail design and fit more columns
-        section = document.sections[0]
-        section.orientation = WD_ORIENT.LANDSCAPE
-        section.page_width = Inches(11)
-        section.page_height = Inches(8.5)
+        apply_standard_word_style(document, landscape=True)
         
         create_header(document, "HYDRAULIC SOW HISTORY", [
             f"Customer: {customer.name}",
@@ -204,25 +211,13 @@ def generate_sow_history_export(customer, sows, format_type, request):
         table.style = 'Table Grid'
         table.autofit = False 
         
-        # Set column widths (Total approx 10.5 inches)
-        widths = [Inches(1.0), Inches(1.0), Inches(1.5), Inches(2.0), Inches(1.5), Inches(0.8), Inches(1.5), Inches(1.2)]
+        widths = [Inches(1.0), Inches(1.0), Inches(1.5), Inches(2.1), Inches(2.1), Inches(0.9), Inches(1.0), Inches(0.9)]
         for i, width in enumerate(widths):
             table.columns[i].width = width
 
-        hdr_cells = table.rows[0].cells
         headers = ['Job ID', 'Date', 'Application', 'Hose Details', 'Fittings', 'Cost', 'Notes', 'Created By']
-        for i, text in enumerate(headers):
-            set_cell_background(hdr_cells[i], "2C3E50")
-            hdr_cells[i].text = ""
-            p = hdr_cells[i].paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(text)
-            run.font.name = 'Arial'
-            run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-            run.bold = True
-            run.font.size = Pt(9)
+        style_table_header(table.rows[0], headers)
 
-        # Repeat header on new pages
         tr = table.rows[0]._tr
         trPr = tr.get_or_add_trPr()
         tblHeader = parse_xml(r'<w:tblHeader %s/>' % nsdecls('w'))
@@ -236,6 +231,7 @@ def generate_sow_history_export(customer, sows, format_type, request):
             row_cells = table.add_row().cells
             
             def set_cell_text(cell, text, align=WD_ALIGN_PARAGRAPH.LEFT, bold=False):
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                 cell.text = text
                 p = cell.paragraphs[0]; p.alignment = align
                 for run in p.runs: run.font.name = 'Arial'; run.font.size = Pt(8); run.bold = bold
@@ -245,7 +241,7 @@ def generate_sow_history_export(customer, sows, format_type, request):
             set_cell_text(row_cells[2], sow.application or '-')
             set_cell_text(row_cells[3], f"{sow.hose_type or '-'}\nØ {sow.diameter or '?'} | L: {sow.length or '?'}mm | P: {sow.pressure or '?'} PSI")
             set_cell_text(row_cells[4], f"A: {sow.fitting_a or '-'}\nB: {sow.fitting_b or '-'}")
-            set_cell_text(row_cells[5], f"{sow.cost:,.2f}" if sow.cost else "-", WD_ALIGN_PARAGRAPH.RIGHT, bold=True)
+            set_cell_text(row_cells[5], f"{sow.cost:,.2f}" if sow.cost else "-", WD_ALIGN_PARAGRAPH.RIGHT)
             set_cell_text(row_cells[6], sow.notes or '-')
             set_cell_text(row_cells[7], sow.created_by.username if sow.created_by else 'N/A')
 
@@ -258,13 +254,10 @@ def generate_sow_history_export(customer, sows, format_type, request):
         response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
         return response
+        return response
 
     else: # PDF
-        context = {
-            'customer': customer,
-            'sows': sows,
-            'today': timezone.now(),
-        }
+        context = {'customer': customer, 'sows': sows, 'today': timezone.now()}
         pdf = render_to_pdf('inventory/sow_history_pdf.html', context, request=request)
         if pdf:
             response = HttpResponse(pdf, content_type='application/pdf')
@@ -274,6 +267,7 @@ def generate_sow_history_export(customer, sows, format_type, request):
 
 def generate_expense_report(expenses, format_type, request):
     filename = f"Expense_Report_{timezone.now().strftime('%Y%m%d')}"
+    total_expenses = sum(e.amount for e in expenses)
 
     if format_type == 'excel':
         wb = Workbook()
@@ -287,14 +281,16 @@ def generate_expense_report(expenses, format_type, request):
         info_font = Font(name='Arial', size=10, color="7F8C8D")
         header_font = Font(name='Arial', size=10, bold=True, color="FFFFFF")
         header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
-        total_font = Font(name='Arial', size=11, bold=True)
         thin_border = Border(left=Side(style='thin', color="BDC3C7"), right=Side(style='thin', color="BDC3C7"), top=Side(style='thin', color="BDC3C7"), bottom=Side(style='thin', color="BDC3C7"))
+        data_alignment = Alignment(vertical='center')
+        data_alignment_right = Alignment(horizontal='right', vertical='center')
 
         # Report Header
         add_excel_logo(ws)
-        ws.merge_cells('B1:D1'); ws['B1'] = "Rich Land Auto Supply"; ws['B1'].font = title_font; ws['B1'].alignment = Alignment(horizontal='left', vertical='center')
-        ws.merge_cells('E1:F1'); ws['E1'] = "EXPENSE REPORT"; ws['E1'].font = subtitle_font; ws['E1'].alignment = Alignment(horizontal='right', vertical='center')
-        ws.merge_cells('E2:F2'); ws['E2'] = f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"; ws['E2'].font = info_font; ws['E2'].alignment = Alignment(horizontal='right')
+        ws.merge_cells('B1:C1'); ws['B1'] = "Rich Land Auto Supply"; ws['B1'].font = title_font; ws['B1'].alignment = Alignment(horizontal='left', vertical='center')
+        ws.merge_cells('D1:E1'); ws['D1'] = "EXPENSE REPORT"; ws['D1'].font = subtitle_font; ws['D1'].alignment = Alignment(horizontal='right', vertical='center')
+        ws.merge_cells('D2:E2'); ws['D2'] = f"Total Expenses: PHP {total_expenses:,.2f}"; ws['D2'].font = info_font; ws['D2'].alignment = Alignment(horizontal='right')
+        ws.merge_cells('D3:E3'); ws['D3'] = f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"; ws['D3'].font = info_font; ws['D3'].alignment = Alignment(horizontal='right')
         ws.row_dimensions[1].height = 30
 
         # Table Headers
@@ -309,24 +305,16 @@ def generate_expense_report(expenses, format_type, request):
             cell.border = thin_border
         
         # Data Rows
-        total_expenses = Decimal('0')
         for expense in expenses:
             current_row += 1
-            total_expenses += expense.amount
-
-            ws.cell(row=current_row, column=1, value=expense.expense_date)
-            ws.cell(row=current_row, column=2, value=expense.category.name if expense.category else 'N/A')
-            ws.cell(row=current_row, column=3, value=expense.description)
-            ws.cell(row=current_row, column=4, value=expense.amount).number_format = '#,##0.00'
-            ws.cell(row=current_row, column=5, value=expense.recorded_by.username if expense.recorded_by else 'N/A')
+            ws.cell(row=current_row, column=1, value=expense.expense_date).alignment = data_alignment
+            ws.cell(row=current_row, column=2, value=expense.category.name if expense.category else 'N/A').alignment = data_alignment
+            ws.cell(row=current_row, column=3, value=expense.description).alignment = data_alignment
+            c4 = ws.cell(row=current_row, column=4, value=expense.amount); c4.number_format = '#,##0.00'; c4.alignment = data_alignment_right
+            ws.cell(row=current_row, column=5, value=expense.recorded_by.username if expense.recorded_by else 'N/A').alignment = data_alignment
 
             for col in range(1, 6):
                 ws.cell(row=current_row, column=col).border = thin_border
-
-        # Total Row
-        current_row += 2
-        total_label_cell = ws[f'C{current_row}']; total_label_cell.value = "Total Expenses:"; total_label_cell.font = total_font; total_label_cell.alignment = Alignment(horizontal='right')
-        total_value_cell = ws[f'D{current_row}']; total_value_cell.value = total_expenses; total_value_cell.font = total_font; total_value_cell.number_format = '"PHP" #,##0.00'
 
         # Column Widths
         ws.column_dimensions['A'].width = 15; ws.column_dimensions['B'].width = 25; ws.column_dimensions['C'].width = 45
@@ -339,33 +327,48 @@ def generate_expense_report(expenses, format_type, request):
 
     elif format_type == 'word':
         document = Document()
-        setup_word_document_margins(document)
+        apply_standard_word_style(document, landscape=True) # Switch to Landscape
         
-        total = sum(e.amount for e in expenses)
         create_header(document, "EXPENSE REPORT", [
-            f"Total Expenses: PHP {total:,.2f}",
-            f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
-        ])
+            f"Total: PHP {total_expenses:,.2f}",
+            f"Generated: {timezone.now().strftime('%b %d, %Y')}"
+        ], width_inches=10.0) # Adjusted header width for Landscape
 
         table = document.add_table(rows=1, cols=5, style='Table Grid')
         table.autofit = False
-        table.columns[0].width = Inches(1.0)
-        table.columns[1].width = Inches(1.5)
-        table.columns[2].width = Inches(2.8)
-        table.columns[3].width = Inches(1.0)
-        table.columns[4].width = Inches(1.5)
+        # Wider columns for Landscape mode
+        table.columns[0].width = Inches(1.0)  # Date
+        table.columns[1].width = Inches(1.5)  # Cat.
+        table.columns[2].width = Inches(4.5)  # Desc.
+        table.columns[3].width = Inches(1.2)  # By
+        table.columns[4].width = Inches(1.0)  # Amt.
 
-        headers = ['Date', 'Category', 'Description', 'Recorded By', 'Amount']
+        headers = ['Date', 'Category', 'Description', 'By', 'Amount']
         style_table_header(table.rows[0], headers)
         
         for expense in expenses:
             row_cells = table.add_row().cells
-            row_cells[0].text = expense.expense_date.strftime('%Y-%m-%d')
-            row_cells[1].text = expense.category.name if expense.category else ''
-            row_cells[2].text = expense.description
-            row_cells[3].text = expense.recorded_by.username if expense.recorded_by else 'N/A'
-            row_cells[4].text = f"{expense.amount:,.2f}"
-            row_cells[4].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT
+            texts = [
+                expense.expense_date.strftime('%Y-%m-%d'),
+                (expense.category.name if expense.category else ''),
+                expense.description,
+                expense.recorded_by.username if expense.recorded_by else 'N/A',
+                f"{expense.amount:,.2f}"
+            ]
+            alignments = [WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT]
+
+
+            for i, cell in enumerate(row_cells):
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                cell.text = texts[i]
+                p = cell.paragraphs[0]
+                p.alignment = WD_ALIGN_PARAGRAPH.LEFT
+                p.paragraph_format.space_before = Pt(0)
+                p.paragraph_format.space_after = Pt(0)
+                p.paragraph_format.line_spacing = Pt(10)
+                for run in p.runs: 
+                    run.font.name = 'Arial'; run.font.size = Pt(8)
+
 
         f = io.BytesIO()
         document.save(f)
@@ -375,11 +378,7 @@ def generate_expense_report(expenses, format_type, request):
         return response
 
     elif format_type == 'pdf':
-        context = {
-            'expenses': expenses,
-            'total_expenses': sum(e.amount for e in expenses),
-            'today': timezone.now(),
-        }
+        context = {'expenses': expenses, 'total_expenses': total_expenses, 'today': timezone.now()}
         pdf = render_to_pdf('inventory/expense_report_pdf.html', context, request=request)
         if pdf:
             response = HttpResponse(pdf, content_type='application/pdf')
@@ -395,18 +394,49 @@ def generate_customer_list_export(customers, format_type, request):
         wb = Workbook()
         ws = wb.active
         ws.title = "Customers"
+        ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.5, bottom=0.5)
+
+        # Styles
+        title_font = Font(name='Arial', size=18, bold=True, color="2C3E50")
+        subtitle_font = Font(name='Arial', size=14, bold=True, color="2799A5")
+        info_font = Font(name='Arial', size=10, color="7F8C8D")
+        header_font = Font(name='Arial', size=10, bold=True, color="FFFFFF")
+        header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+        thin_border = Border(left=Side(style='thin', color="BDC3C7"), right=Side(style='thin', color="BDC3C7"), top=Side(style='thin', color="BDC3C7"), bottom=Side(style='thin', color="BDC3C7"))
+        data_alignment = Alignment(vertical='center', wrap_text=True)
+        data_alignment_right = Alignment(horizontal='right', vertical='center')
+
+        # Report Header
         add_excel_logo(ws)
-        ws['B1'] = 'Customer List'
-        ws['B1'].font = Font(bold=True, size=12)
-        ws['C1'] = f"Date: {timezone.now().strftime('%Y-%m-%d')}"
-        ws.append([])
+        ws.merge_cells('B1:D1'); ws['B1'] = "Rich Land Auto Supply"; ws['B1'].font = title_font; ws['B1'].alignment = Alignment(horizontal='left', vertical='center')
+        ws.merge_cells('E1:G1'); ws['E1'] = "CUSTOMER LIST"; ws['E1'].font = subtitle_font; ws['E1'].alignment = Alignment(horizontal='right', vertical='center')
+        ws.merge_cells('E2:G2'); ws['E2'] = f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"; ws['E2'].font = info_font; ws['E2'].alignment = Alignment(horizontal='right')
+        ws.row_dimensions[1].height = 30
+
+        # Table Headers
+        current_row = 4
         headers = ['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Credit Limit', 'Current Balance']
-        ws.append(headers)
+        for col_num, header in enumerate(headers, 1):
+            cell = ws.cell(row=current_row, column=col_num)
+            cell.value = header; cell.font = header_font; cell.fill = header_fill
+            cell.alignment = Alignment(horizontal='center', vertical='center'); cell.border = thin_border
+        
+        # Data Rows
         for customer in customers:
-            ws.append([
-                customer.name, customer.email, customer.phone, customer.address,
-                customer.tax_id, f"{customer.credit_limit:.2f}", f"{customer.get_balance():.2f}"
-            ])
+            current_row += 1
+            ws.cell(row=current_row, column=1, value=customer.name).alignment = data_alignment
+            ws.cell(row=current_row, column=2, value=customer.email).alignment = data_alignment
+            ws.cell(row=current_row, column=3, value=customer.phone).alignment = data_alignment
+            ws.cell(row=current_row, column=4, value=customer.address).alignment = data_alignment
+            ws.cell(row=current_row, column=5, value=customer.tax_id).alignment = data_alignment
+            c6 = ws.cell(row=current_row, column=6, value=customer.credit_limit); c6.number_format = '#,##0.00'; c6.alignment = data_alignment_right
+            c7 = ws.cell(row=current_row, column=7, value=customer.get_balance()); c7.number_format = '#,##0.00'; c7.alignment = data_alignment_right
+            for col in range(1, 8): ws.cell(row=current_row, column=col).border = thin_border
+
+        # Column Widths
+        ws.column_dimensions['A'].width = 30; ws.column_dimensions['B'].width = 25; ws.column_dimensions['C'].width = 18; ws.column_dimensions['D'].width = 40
+        ws.column_dimensions['E'].width = 18; ws.column_dimensions['F'].width = 15; ws.column_dimensions['G'].width = 15
+
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
         wb.save(response)
@@ -414,18 +444,18 @@ def generate_customer_list_export(customers, format_type, request):
 
     elif format_type == 'word':
         document = Document()
-        setup_word_document_margins(document)
+        apply_standard_word_style(document, landscape=False)
         
         create_header(document, "CUSTOMER LIST", [
             f"Generated: {timezone.now().strftime('%B %d, %Y')}"
-        ])
+        ], width_inches=8.0)
         
         table = document.add_table(rows=1, cols=4, style='Table Grid')
         table.autofit = False
-        table.columns[0].width = Inches(1.8) # Name
+        table.columns[0].width = Inches(2.0) # Name
         table.columns[1].width = Inches(1.8) # Contact
-        table.columns[2].width = Inches(2.6) # Address
-        table.columns[3].width = Inches(1.6) # Credit Info
+        table.columns[2].width = Inches(2.4) # Address
+        table.columns[3].width = Inches(1.8) # Credit Info
 
         style_table_header(table.rows[0], ['Name', 'Contact', 'Address', 'Credit Info'])
         
@@ -435,6 +465,12 @@ def generate_customer_list_export(customers, format_type, request):
             row_cells[1].text = f"{customer.email or 'N/A'}\n{customer.phone or 'N/A'}"
             row_cells[2].text = customer.address or 'N/A'
             row_cells[3].text = f"Limit: {customer.credit_limit:,.2f}\nBalance: {customer.get_balance():,.2f}"
+            for cell in row_cells:
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                for p in cell.paragraphs:
+                    for run in p.runs:
+                        run.font.name = 'Arial'
+                        run.font.size = Pt(8)
         f = io.BytesIO()
         document.save(f)
         f.seek(0)
@@ -469,6 +505,8 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
         header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
         total_font = Font(name='Arial', size=11, bold=True)
         thin_border = Border(left=Side(style='thin', color="BDC3C7"), right=Side(style='thin', color="BDC3C7"), top=Side(style='thin', color="BDC3C7"), bottom=Side(style='thin', color="BDC3C7"))
+        data_alignment = Alignment(vertical='center', wrap_text=True)
+        data_alignment_right = Alignment(horizontal='right', vertical='center')
 
         # Report Header
         add_excel_logo(ws)
@@ -482,12 +520,8 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
         current_row = 5
         headers = ['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance', 'Processed By']
         for col_num, header in enumerate(headers, 1):
-            cell = ws.cell(row=current_row, column=col_num)
-            cell.value = header
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = Alignment(horizontal='center', vertical='center')
-            cell.border = thin_border
+            cell = ws.cell(row=current_row, column=col_num); cell.value = header; cell.font = header_font
+            cell.fill = header_fill; cell.alignment = Alignment(horizontal='center', vertical='center'); cell.border = thin_border
         
         # Data Rows
         for row_data in final_data:
@@ -497,13 +531,13 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
             credit = row_data.get('credit') if row_data.get('credit') and row_data.get('credit') > 0 else None
             desc = row_data.get('description') or row_data.get('desc', '')
             
-            ws.cell(row=current_row, column=1, value=row_data['date'].strftime('%Y-%m-%d'))
-            ws.cell(row=current_row, column=2, value=row_data.get('ref', '-'))
-            ws.cell(row=current_row, column=3, value=desc)
-            ws.cell(row=current_row, column=4, value=debit).number_format = '#,##0.00'
-            ws.cell(row=current_row, column=5, value=credit).number_format = '#,##0.00'
-            ws.cell(row=current_row, column=6, value=row_data['balance']).number_format = '#,##0.00'
-            ws.cell(row=current_row, column=7, value=row_data.get('user', 'N/A'))
+            ws.cell(row=current_row, column=1, value=row_data['date'].strftime('%Y-%m-%d')).alignment = data_alignment
+            ws.cell(row=current_row, column=2, value=row_data.get('ref', '-')).alignment = data_alignment
+            ws.cell(row=current_row, column=3, value=desc).alignment = data_alignment
+            c4 = ws.cell(row=current_row, column=4, value=debit); c4.number_format = '#,##0.00'; c4.alignment = data_alignment_right
+            c5 = ws.cell(row=current_row, column=5, value=credit); c5.number_format = '#,##0.00'; c5.alignment = data_alignment_right
+            c6 = ws.cell(row=current_row, column=6, value=row_data['balance']); c6.number_format = '#,##0.00'; c6.alignment = data_alignment_right; c6.font = Font(bold=True)
+            ws.cell(row=current_row, column=7, value=row_data.get('user', 'N/A')).alignment = data_alignment
 
             for col in range(1, 8):
                 ws.cell(row=current_row, column=col).border = thin_border
@@ -514,7 +548,7 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
         total_value_cell = ws[f'F{current_row}']; total_value_cell.value = running_balance; total_value_cell.font = total_font; total_value_cell.number_format = '"PHP" #,##0.00'
 
         # Column Widths
-        ws.column_dimensions['A'].width = 12; ws.column_dimensions['B'].width = 15; ws.column_dimensions['C'].width = 45
+        ws.column_dimensions['A'].width = 12; ws.column_dimensions['B'].width = 20; ws.column_dimensions['C'].width = 45
         ws.column_dimensions['D'].width = 15; ws.column_dimensions['E'].width = 15; ws.column_dimensions['F'].width = 15
         ws.column_dimensions['G'].width = 18
 
@@ -525,44 +559,21 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
 
     elif format_type == 'word':
         document = Document()
-        setup_word_document_margins(document)
-        # Switch to Landscape to match Supplier Detail design and fit more columns
-        section = document.sections[0]
-        section.orientation = WD_ORIENT.LANDSCAPE
-        section.page_width = Inches(11)
-        section.page_height = Inches(8.5)
-        
+        apply_standard_word_style(document, landscape=True)
+
         create_header(document, "CUSTOMER STATEMENT", [
             f"Customer: {customer.name}",
             f"Address: {customer.address or 'N/A'}",
             f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
         ], width_inches=10.5)
 
-        # Table with 7 columns
-        table = document.add_table(rows=1, cols=7)
-        table.style = 'Table Grid'
-        table.autofit = False
-        
-        # Set column widths (Total approx 10.5 inches)
-        widths = [Inches(1.0), Inches(1.2), Inches(3.3), Inches(1.0), Inches(1.0), Inches(1.2), Inches(1.8)]
-        for i, width in enumerate(widths):
-            table.columns[i].width = width
+        table = document.add_table(rows=1, cols=7); table.style = 'Table Grid'; table.autofit = False
+        widths = [Inches(1.0), Inches(1.2), Inches(4.0), Inches(1.0), Inches(1.0), Inches(1.2), Inches(1.1)]
+        for i, width in enumerate(widths): table.columns[i].width = width
 
-        # Header Row Styling
         headers = ['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance', 'Processed By']
-        hdr_cells = table.rows[0].cells
-        for i, text in enumerate(headers):
-            set_cell_background(hdr_cells[i], "2C3E50")
-            hdr_cells[i].text = ""
-            p = hdr_cells[i].paragraphs[0]
-            p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            run = p.add_run(text)
-            run.font.name = 'Arial'
-            run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF)
-            run.bold = True
-            run.font.size = Pt(9)
+        style_table_header(table.rows[0], headers)
 
-        # Repeat header on new pages
         tr = table.rows[0]._tr
         trPr = tr.get_or_add_trPr()
         tblHeader = parse_xml(r'<w:tblHeader %s/>' % nsdecls('w'))
@@ -571,41 +582,25 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
         for row in final_data:
             row_cells = table.add_row().cells
             
-            # Helper to set text and font
             def set_cell_text(cell, text, align=WD_ALIGN_PARAGRAPH.LEFT, bold=False):
-                cell.text = text
-                p = cell.paragraphs[0]
-                p.alignment = align
-                for run in p.runs:
-                    run.font.name = 'Arial'
-                    run.font.size = Pt(9)
-                    if bold: run.bold = True
+                cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                cell.text = str(text)
+                p = cell.paragraphs[0]; p.alignment = align
+                for run in p.runs: run.font.name = 'Arial'; run.font.size = Pt(9); run.bold = bold
 
-            row_cells[0].text = row['date'].strftime('%Y-%m-%d')
             set_cell_text(row_cells[0], row['date'].strftime('%Y-%m-%d'))
-            
             set_cell_text(row_cells[1], row.get('ref', '-') or '-')
-            
-            desc = row.get('description') or row.get('desc')
-            set_cell_text(row_cells[2], desc)
-            
+            set_cell_text(row_cells[2], row.get('description') or row.get('desc'))
             debit_str = f"{row['debit']:,.2f}" if row.get('debit') and row.get('debit') > 0 else "-"
             set_cell_text(row_cells[3], debit_str, WD_ALIGN_PARAGRAPH.RIGHT)
-            
             credit_str = f"{row['credit']:,.2f}" if row.get('credit') and row.get('credit') > 0 else "-"
             set_cell_text(row_cells[4], credit_str, WD_ALIGN_PARAGRAPH.RIGHT)
-            
             set_cell_text(row_cells[5], f"{row['balance']:,.2f}", WD_ALIGN_PARAGRAPH.RIGHT, bold=True)
-            
             set_cell_text(row_cells[6], row.get('user', 'N/A'))
 
-        p = document.add_paragraph()
-        p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        p = document.add_paragraph(); p.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         run = p.add_run(f"\nTotal Outstanding Balance: PHP {running_balance:,.2f}")
-        run.bold = True
-        run.font.name = 'Arial'
-        run.font.size = Pt(12)
-        run.font.color.rgb = RGBColor(0x2C, 0x3E, 0x50)
+        run.bold = True; run.font.name = 'Arial'; run.font.size = Pt(12); run.font.color.rgb = RGBColor(0x2C, 0x3E, 0x50)
 
         f = io.BytesIO()
         document.save(f)
@@ -613,14 +608,10 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
         response = HttpResponse(f.read(), content_type='application/vnd.openxmlformats-officedocument.wordprocessingml.document')
         response['Content-Disposition'] = f'attachment; filename="{filename}.docx"'
         return response
+        return response
 
     else: # PDF
-        context = {
-            'customer': customer,
-            'ledger': final_data,
-            'today': timezone.now(),
-            'current_balance': running_balance
-        }
+        context = {'customer': customer, 'ledger': final_data, 'today': timezone.now(), 'current_balance': running_balance}
         pdf = render_to_pdf('inventory/statement_pdf.html', context, request=request)
         if pdf:
             response = HttpResponse(pdf, content_type='application/pdf')
@@ -691,11 +682,7 @@ def generate_supplier_deliveries_export(supplier, purchase_orders, format_type, 
 
     elif format_type == 'word':
         document = Document()
-        setup_word_document_margins(document)
-        # Switch to Landscape
-        section = document.sections[0]
-        section.orientation = WD_ORIENT.LANDSCAPE
-        section.page_width = Inches(11); section.page_height = Inches(8.5)
+        apply_standard_word_style(document, landscape=True)
 
         create_header(document, "SUPPLIER HISTORY", [
             f"Supplier: {supplier.name}",
@@ -703,31 +690,27 @@ def generate_supplier_deliveries_export(supplier, purchase_orders, format_type, 
             f"Email: {supplier.email or 'N/A'}",
             f"Phone: {supplier.phone or 'N/A'}",
             f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
-        ], width_inches=5.5)
+        ], width_inches=10.5)
 
         for po in purchase_orders:
             # PO Header
             po_table = document.add_table(rows=1, cols=3); po_table.style = 'Table Grid'; po_table.autofit = False
-            po_table.columns[0].width = Inches(2.5); po_table.columns[1].width = Inches(1.5); po_table.columns[2].width = Inches(1.5)
+            po_table.columns[0].width = Inches(6.4); po_table.columns[1].width = Inches(2.0); po_table.columns[2].width = Inches(2.0)
             row = po_table.rows[0]
             
             c1 = row.cells[0]; p = c1.paragraphs[0]; run = p.add_run(f"PO # {po.order_id}"); run.bold = True; run.font.name = 'Arial'; run.font.color.rgb = RGBColor(0x2C, 0x3E, 0x50); run.font.size = Pt(9); set_cell_background(c1, "ECF0F1")
             c2 = row.cells[1]; p = c2.paragraphs[0]; run = p.add_run(f"Date: {po.order_date.strftime('%Y-%m-%d')}"); run.font.name = 'Arial'; run.font.size = Pt(9); set_cell_background(c2, "ECF0F1")
-            c3 = row.cells[2]; p = c3.paragraphs[0]; p.alignment = WD_ALIGN_PARAGRAPH.LEFT; run = p.add_run(f"Status: {po.get_status_display()}"); run.font.name = 'Arial'; run.bold = True; run.font.size = Pt(9); set_cell_background(c3, "ECF0F1")
-            
+            c3 = row.cells[2]; p = c3.paragraphs[0]; p.alignment = WD_ALIGN_PARAGRAPH.RIGHT; run = p.add_run(f"Status: {po.get_status_display()}"); run.font.name = 'Arial'; run.bold = True; run.font.size = Pt(9); set_cell_background(c3, "ECF0F1")
+            for cell in row.cells: cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+
             # Items
             table = document.add_table(rows=1, cols=6, style='Table Grid'); table.autofit = False
-            widths = [Inches(0.8), Inches(2.0), Inches(0.5), Inches(0.8), Inches(1.0), Inches(0.4)]
+            widths = [Inches(1.5), Inches(5.1), Inches(0.7), Inches(1.2), Inches(1.3), Inches(0.6)]
             for i, width in enumerate(widths): table.columns[i].width = width
             
-            hdr_cells = table.rows[0].cells
             headers = ['SKU', 'Product Name', 'Qty', 'Unit Price', 'Total', 'Rcv']
-            alignments = [WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.CENTER]
-            for i, text in enumerate(headers):
-                hdr_cells[i].text = ""; set_cell_background(hdr_cells[i], "2C3E50"); p = hdr_cells[i].paragraphs[0]; p.alignment = alignments[i]
-                run = p.add_run(text); run.font.name = 'Arial'; run.font.color.rgb = RGBColor(0xFF, 0xFF, 0xFF); run.bold = True; run.font.size = Pt(8)
+            style_table_header(table.rows[0], headers)
             
-            # Repeat header on new pages
             tr = table.rows[0]._tr
             trPr = tr.get_or_add_trPr()
             tblHeader = parse_xml(r'<w:tblHeader %s/>' % nsdecls('w'))
@@ -738,18 +721,21 @@ def generate_supplier_deliveries_export(supplier, purchase_orders, format_type, 
             else:
                 for item in po.items.all():
                     row_cells = table.add_row().cells
-                    row_cells[0].text = item.product.sku; 
-                    for run in row_cells[0].paragraphs[0].runs: run.font.name = 'Arial'; run.font.size = Pt(8)
-                    row_cells[1].text = item.product.name; 
-                    for run in row_cells[1].paragraphs[0].runs: run.font.name = 'Arial'; run.font.size = Pt(8)
-                    row_cells[2].text = str(item.quantity); row_cells[2].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER; 
-                    for run in row_cells[2].paragraphs[0].runs: run.font.name = 'Arial'; run.font.size = Pt(8)
-                    row_cells[3].text = f"{item.price:,.2f}"; row_cells[3].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT; 
-                    for run in row_cells[3].paragraphs[0].runs: run.font.name = 'Arial'; run.font.size = Pt(8)
-                    row_cells[4].text = f"{item.line_total:,.2f}"; row_cells[4].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.RIGHT; 
-                    for run in row_cells[4].paragraphs[0].runs: run.font.name = 'Arial'; run.font.size = Pt(8); run.bold = True
-                    row_cells[5].text = 'Y' if po.status == 'RECEIVED' else '-'; row_cells[5].paragraphs[0].alignment = WD_ALIGN_PARAGRAPH.CENTER; 
-                    for run in row_cells[5].paragraphs[0].runs: run.font.name = 'Arial'; run.font.size = Pt(8)
+                    row_cells[0].text = item.product.sku
+                    row_cells[1].text = item.product.name
+                    row_cells[2].text = str(item.quantity)
+                    row_cells[3].text = f"{item.price:,.2f}"
+                    row_cells[4].text = f"{item.line_total:,.2f}"
+                    row_cells[5].text = 'Y' if po.status == 'RECEIVED' else '-'
+
+                    # Alignments and Font Styling
+                    alignments = [WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.LEFT, WD_ALIGN_PARAGRAPH.CENTER, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.RIGHT, WD_ALIGN_PARAGRAPH.CENTER]
+                    for i, cell in enumerate(row_cells):
+                        cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
+                        cell.paragraphs[0].alignment = alignments[i]
+                        for run in cell.paragraphs[0].runs: 
+                            run.font.name = 'Arial'; run.font.size = Pt(8)
+                            if i == 4: run.bold = True
             document.add_paragraph()
 
         f = io.BytesIO()
