@@ -1,4 +1,3 @@
-import csv
 import io
 import os
 from decimal import Decimal
@@ -116,28 +115,7 @@ def style_table_header(row, headers):
 def generate_sow_history_export(customer, sows, format_type, request):
     filename = f"SOW_History_{slugify(customer.name)}_{timezone.now().strftime('%Y%m%d')}"
 
-    if format_type == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Job ID', 'Date', 'Application', 'Hose Type', 'Diameter', 'Length', 'Pressure', 'Fitting A', 'Fitting B', 'Cost', 'Notes'])
-        for sow in sows:
-            writer.writerow([
-                sow.sow_id or sow.id,
-                sow.date_created.strftime('%Y-%m-%d'),
-                sow.application,
-                sow.hose_type,
-                sow.diameter,
-                sow.length,
-                sow.pressure,
-                sow.fitting_a,
-                sow.fitting_b,
-                sow.cost,
-                sow.notes
-            ])
-        return response
-
-    elif format_type == 'excel':
+    if format_type == 'excel':
         wb = Workbook()
         ws = wb.active
         ws.title = "SOW History"
@@ -297,22 +275,7 @@ def generate_sow_history_export(customer, sows, format_type, request):
 def generate_expense_report(expenses, format_type, request):
     filename = f"Expense_Report_{timezone.now().strftime('%Y%m%d')}"
 
-    if format_type == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Date', 'Category', 'Description', 'Amount', 'Recorded By'])
-        for expense in expenses:
-            writer.writerow([
-                expense.expense_date,
-                expense.category.name if expense.category else 'N/A',
-                expense.description,
-                expense.amount,
-                expense.recorded_by.username if expense.recorded_by else 'N/A'
-            ])
-        return response
-    
-    elif format_type == 'excel':
+    if format_type == 'excel':
         wb = Workbook()
         ws = wb.active
         ws.title = "Expenses"
@@ -428,19 +391,7 @@ def generate_expense_report(expenses, format_type, request):
 def generate_customer_list_export(customers, format_type, request):
     filename = f"Customer_List_{timezone.now().strftime('%Y%m%d')}"
 
-    if format_type == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Credit Limit', 'Current Balance'])
-        for customer in customers:
-            writer.writerow([
-                customer.name, customer.email, customer.phone, customer.address,
-                customer.tax_id, customer.credit_limit, customer.get_balance()
-            ])
-        return response
-
-    elif format_type == 'excel':
+    if format_type == 'excel':
         wb = Workbook()
         ws = wb.active
         ws.title = "Customers"
@@ -504,19 +455,7 @@ def generate_customer_list_export(customers, format_type, request):
 def generate_customer_statement(customer, final_data, running_balance, format_type, request):
     filename = f"Statement_{slugify(customer.name)}_{timezone.now().strftime('%Y%m%d')}"
 
-    if format_type == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['Date', 'Reference', 'Description', 'Charge', 'Payment', 'Balance'])
-        for row in final_data:
-            charge = row.get('debit') if row.get('debit') and row.get('debit') > 0 else ''
-            pay = row.get('credit') if row.get('credit') and row.get('credit') > 0 else ''
-            desc = row.get('description') or row.get('desc')
-            writer.writerow([row['date'].strftime('%Y-%m-%d'), row['ref'], desc, charge, pay, row['balance']])
-        return response
-
-    elif format_type == 'excel':
+    if format_type == 'excel':
         wb = Workbook()
         ws = wb.active
         ws.title = "Statement"
@@ -689,29 +628,10 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
             return response
         return HttpResponse("Error Generating PDF", status=500)
 
-def generate_inventory_csv(products):
-    response = HttpResponse(content_type='text/csv')
-    response['Content-Disposition'] = 'attachment; filename="inventory_snapshot.csv"'
-    writer = csv.writer(response)
-    writer.writerow(['Product', 'SKU', 'Category', 'Quantity', 'Price', 'Status'])
-    for p in products:
-        writer.writerow([p.name, p.sku, p.category.name if p.category else 'N/A', p.quantity, p.price, p.get_status_display()])
-    return response
-
 def generate_supplier_deliveries_export(supplier, purchase_orders, format_type, request):
     filename = f"Deliveries_{slugify(supplier.name)}_{timezone.now().strftime('%Y%m%d')}"
 
-    if format_type == 'csv':
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="{filename}.csv"'
-        writer = csv.writer(response)
-        writer.writerow(['PO ID', 'Order Date', 'Status', 'Product SKU', 'Product Name', 'Quantity', 'Price per Item'])
-        for po in purchase_orders:
-            for item in po.items.all():
-                writer.writerow([po.order_id, po.order_date.strftime('%Y-%m-%d'), po.get_status_display(), item.product.sku, item.product.name, item.quantity, item.price])
-        return response
-
-    elif format_type == 'excel':
+    if format_type == 'excel':
         wb = Workbook()
         ws = wb.active
         ws.title = "Deliveries"

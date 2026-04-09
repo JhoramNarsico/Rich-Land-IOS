@@ -1,4 +1,3 @@
-import csv
 import json
 import uuid
 from datetime import timedelta, datetime
@@ -44,7 +43,7 @@ from .forms import (
 from .utils import render_to_pdf
 from .exports import (
     generate_sow_history_export, generate_expense_report, generate_customer_list_export,
-    generate_customer_statement, generate_inventory_csv, generate_supplier_deliveries_export
+    generate_customer_statement, generate_supplier_deliveries_export
 )
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -1915,17 +1914,11 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
 
     def get(self, request, *args, **kwargs):
         export_type = request.GET.get('export')
-        if export_type == 'inventory_csv':
-            return self.export_inventory_csv()
-        elif export_type == 'inventory_pdf':
+        if export_type == 'inventory_pdf':
             return self.export_inventory_pdf(request)
         elif export_type == 'transaction_pdf':
             return self.export_transactions_pdf(request)
         return super().get(request, *args, **kwargs)
-
-    def export_inventory_csv(self):
-        products = Product.objects.select_related('category').all()
-        return generate_inventory_csv(products)
 
     def export_inventory_pdf(self, request):
         products = Product.objects.select_related('category').all().annotate(

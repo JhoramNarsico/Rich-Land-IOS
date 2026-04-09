@@ -14,7 +14,7 @@
 
     <div class="row g-4">
         
-        <!-- 2. INVENTORY SNAPSHOT (CSV) -->
+        <!-- 2. INVENTORY SNAPSHOT -->
         <div class="col-lg-5">
             <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body p-4 d-flex flex-column">
@@ -22,7 +22,7 @@
                         <div>
                             <h5 class="fw-bold text-dark mb-1">Current Stock Snapshot</h5>
                             <div>
-                                <span class="badge bg-success-subtle text-success border border-success rounded-pill me-1">Excel / CSV</span>
+                                <span class="badge bg-success-subtle text-success border border-success rounded-pill me-1">Excel</span>
                                 <span class="badge bg-danger-subtle text-danger border border-danger rounded-pill">PDF</span>
                             </div>
                         </div>
@@ -38,10 +38,7 @@
                     </p>
 
                     <div class="d-grid gap-2 d-sm-flex justify-content-center">
-                        <a href="{% url 'inventory:reporting' %}?export=inventory_csv" class="btn btn-outline-success flex-grow-1 fw-bold py-2">
-                            <i class="fas fa-file-csv me-2"></i>Download CSV
-                        </a>
-                        <a href="{% url 'inventory:reporting' %}?export=inventory_pdf" class="btn btn-outline-danger flex-grow-1 fw-bold py-2">
+                        <a href="{% url 'inventory:reporting' %}?export=inventory_pdf" class="btn btn-primary flex-grow-1 fw-bold py-2">
                             <i class="fas fa-file-pdf me-2"></i>Download PDF
                         </a>
                     </div>
