@@ -54,41 +54,6 @@ Render Deployment Link: https://rich-land-inventory-system.onrender.com/
 - **Styling**: Bootstrap 5  
 - **Interactivity**: Vanilla JavaScript + Bootstrap JS
 
----
-
-##  Project Milestones (Completed <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;">)
-
-### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 1 (Nov W1): Proposal & Design
-- Defined `Product`, `Category`, `Transaction` models  
-- Completed ITCC14 Doc (Chapters 1–2)  
-- Drafted API endpoints
-
-### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 2 (Nov W2): Core Backend
-- Django + MySQL + DRF setup  
-- Basic CRUD + Swagger UI at `/api/docs/`
-
-### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 3 (Nov W3): Full API + Reporting
-- Full CRUD with validation  
-- Audit history + PDF reports  
-- Seed data script added
-
-### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 4 (Nov W4): Frontend + Admin
-- Responsive dashboard with Bootstrap  
-- Product list, detail, history, and reporting pages  
-- Admin panel enhanced with developer links
-
-### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Milestone 5 (Dec W1): Polishing
-- Checking for bugs
-- Documentation
-
-### <img src="richland_inventory/static/images/check.png" width="20" style="vertical-align: middle;"> Final (Dec W2): Demo Ready
-- Using free tier of Render for deployment 
-- Backup assets and slides completed
-
----
-## Developer Setup Instructions
-
-Follow these steps to get the project running.
 
 ### 1. Clone the Repository
 
