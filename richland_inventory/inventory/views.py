@@ -1969,18 +1969,24 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
                 end_dt = timezone.make_aware(datetime.combine(end_date, datetime.max.time()))
                 transactions = transactions.filter(timestamp__lte=end_dt)
         
+        # 1. Annotate row_total for the main list and for aggregation
         transactions = transactions.annotate(
             row_total=ExpressionWrapper(F('quantity') * F('selling_price'), output_field=DecimalField())
-        ).order_by('-timestamp')
+        )
 
-        sales_txns = transactions.filter(transaction_reason=StockTransaction.TransactionReason.SALE)
-        refund_txns = transactions.filter(transaction_reason=StockTransaction.TransactionReason.RETURN)
-
-        gross_sales = sales_txns.aggregate(total=Sum('row_total'))['total'] or Decimal('0.00')
-        total_refunds = refund_txns.aggregate(total=Sum('row_total'))['total'] or Decimal('0.00')
+        # 2. Consolidate main aggregations into ONE query
+        summary = transactions.aggregate(
+            gross_sales=Sum('row_total', filter=Q(transaction_reason=StockTransaction.TransactionReason.SALE)),
+            total_refunds=Sum('row_total', filter=Q(transaction_reason=StockTransaction.TransactionReason.RETURN)),
+            total_items_sold=Sum('quantity', filter=Q(transaction_reason=StockTransaction.TransactionReason.SALE)),
+        )
+        
+        gross_sales = summary['gross_sales'] or Decimal('0.00')
+        total_refunds = summary['total_refunds'] or Decimal('0.00')
         net_revenue = gross_sales - total_refunds
-        total_items_sold = sales_txns.aggregate(total=Sum('quantity'))['total'] or 0
+        total_items_sold = summary['total_items_sold'] or 0
 
+        # 3. Summaries (Still separate queries but grouped/small)
         inflow_summary = transactions.filter(transaction_type='IN').values('transaction_reason').annotate(total_qty=Sum('quantity')).order_by('-total_qty')
         
         loss_summary = transactions.filter(
@@ -1991,15 +1997,32 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
             total_qty=Sum('quantity'), total_val=Sum('lost_value')
         ).order_by('-total_val')
 
-        top_sellers = sales_txns.values('product__name').annotate(
+        top_sellers = transactions.filter(
+            transaction_reason=StockTransaction.TransactionReason.SALE
+        ).values('product__name').annotate(
             total_quantity_sold=Sum('quantity')
         ).order_by('-total_quantity_sold')[:5]
 
+        # 4. Handle Row Truncation for PDF Stability
+        # xhtml2pdf struggles with tables over 500-1000 rows.
+        ordered_transactions = transactions.order_by('-timestamp')
+        total_count = ordered_transactions.count()
+        is_truncated = False
+        display_limit = 1000
+        
+        if total_count > display_limit:
+            display_transactions = ordered_transactions[:display_limit]
+            is_truncated = True
+        else:
+            display_transactions = ordered_transactions
+
         context = {
-            'transactions': transactions, 'start_date': start_date, 'end_date': end_date,
+            'transactions': display_transactions, 
+            'start_date': start_date, 'end_date': end_date,
             'gross_sales': gross_sales, 'total_refunds': total_refunds, 'net_revenue': net_revenue,
             'total_items_sold': total_items_sold, 'inflow_summary': inflow_summary,
             'loss_summary': loss_summary, 'top_sellers': top_sellers, 'today': timezone.now(),
+            'is_truncated': is_truncated, 'total_count': total_count, 'display_limit': display_limit
         }
 
         pdf = render_to_pdf('inventory/transaction_report_pdf.html', context, request=request)

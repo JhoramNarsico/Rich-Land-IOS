@@ -101,7 +101,7 @@
             {% for item in po.items.all %}
             <tr>
                 <td>{{ item.product.sku }}</td>
-                <td>{{ item.product.name }}</td>
+                <td class="bold">{{ item.product.name }}</td>
                 <td class="text-center">{{ item.quantity|intcomma }}</td>
                 <td class="text-right">{{ item.price|floatformat:2|intcomma }}</td>
                 <td class="text-right bold">

@@ -1,3 +1,5 @@
+{% load static %}
+{% load humanize %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -5,49 +7,96 @@
     <title>Customer List</title>
     <style>
         @page {
-            size: letter landscape;
+            size: a4 portrait;
             margin: 1cm;
+            margin-top: 3.5cm; 
+            margin-bottom: 2cm;
+            
+            @frame header_frame { 
+                -pdf-frame-content: header_content;
+                left: 30pt; width: 535pt; top: 20pt; height: 100pt;
+            }
+            
+            @frame footer_frame { 
+                -pdf-frame-content: footer_content;
+                left: 30pt; width: 535pt; top: 780pt; height: 20pt;
+            }
         }
-        body { font-family: "Helvetica", sans-serif; font-size: 10px; }
-        .header { text-align: center; margin-bottom: 20px; }
-        .header h1 { margin: 0; }
-        .header p { margin: 0; font-size: 12px; }
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }
-        th { background-color: #f2f2f2; }
+        
+        body { 
+            font-family: Helvetica, sans-serif; 
+            font-size: 9px; 
+            color: #2c3e50; 
+        }
+        
+        .header-table { width: 100%; border-bottom: 2px solid #2799a5; margin-bottom: 10px; }
+        .company-name { font-size: 16px; font-weight: bold; color: #2c3e50; }
+        .report-title { font-size: 20px; font-weight: bold; color: #2799a5; text-align: right; }
+        .report-meta { font-size: 9px; color: #7f8c8d; text-align: right; line-height: 1.4; margin-top: 5px; }
+
+        .summary-table { width: 100%; margin-bottom: 20px; border-collapse: collapse; }
+        .summary-table td { padding: 4px; }
+
+        table.data-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+        table.data-table thead { display: table-header-group; }
+        table.data-table th { background-color: #2c3e50; color: #ffffff; padding: 5px; font-weight: bold; border: 1px solid #2c3e50; text-transform: uppercase; font-size: 8px; }
+        table.data-table td { border: 1px solid #bdc3c7; padding: 4px; vertical-align: middle; font-size: 8px; }
+        
+        .text-right { text-align: right; }
+        .text-center { text-align: center; }
+        .bold { font-weight: bold; }
+        
+        .footer { text-align: center; font-size: 8px; color: #7f8c8d; border-top: 1px solid #bdc3c7; padding-top: 5px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Customer List</h1>
-        <p>Rich Land Auto Supply</p>
-        <p>Generated on: {{ today|date:"F d, Y" }}</p>
+    <!-- HEADER -->
+    <div id="header_content">
+        <table class="header-table">
+            <tr>
+                <td style="vertical-align: bottom; width: 50%;">
+                    <img src="images/logo.png" style="height: 50px; width: auto;" alt="" />
+                    <br/><span class="company-name">Rich Land Auto Supply</span>
+                </td>
+                <td style="vertical-align: bottom; text-align: right; width: 50%;">
+                    <div class="report-title">CUSTOMER LIST</div>
+                    <div class="report-meta">
+                        Generated: {% now "F d, Y h:i A" %}
+                    </div>
+                </td>
+            </tr>
+        </table>
     </div>
 
-    <table>
+    <div id="footer_content" class="footer">
+        Confidential Report | Page <pdf:pagenumber> of <pdf:pagecount>
+    </div>
+
+    <!-- CONTENT -->
+    <table class="data-table">
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Address</th>
-                <th>Credit Limit</th>
-                <th>Balance</th>
+                <th style="width: 20%;">Name</th>
+                <th style="width: 20%;">Email</th>
+                <th style="width: 15%;">Phone</th>
+                <th style="width: 25%;">Address</th>
+                <th style="width: 10%;" class="text-right">Credit Limit</th>
+                <th style="width: 10%;" class="text-right">Balance</th>
             </tr>
         </thead>
         <tbody>
             {% for customer in customers %}
             <tr>
-                <td>{{ customer.name }}</td>
+                <td class="bold">{{ customer.name }}</td>
                 <td>{{ customer.email|default:"N/A" }}</td>
                 <td>{{ customer.phone|default:"N/A" }}</td>
                 <td>{{ customer.address|default:"N/A" }}</td>
-                <td>₱{{ customer.credit_limit|floatformat:2 }}</td>
-                <td>₱{{ customer.get_balance|floatformat:2 }}</td>
+                <td class="text-right">₱{{ customer.credit_limit|floatformat:2|intcomma }}</td>
+                <td class="text-right bold">₱{{ customer.get_balance|floatformat:2|intcomma }}</td>
             </tr>
             {% empty %}
             <tr>
-                <td colspan="6" style="text-align: center;">No customers found.</td>
+                <td colspan="6" class="text-center">No customers found.</td>
             </tr>
             {% endfor %}
         </tbody>

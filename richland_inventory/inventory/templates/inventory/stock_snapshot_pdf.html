@@ -132,7 +132,7 @@
             {% for product in products %}
             <tr>
                 <td>{{ product.sku }}</td>
-                <td>{{ product.name }}</td>
+                <td class="bold">{{ product.name }}</td>
                 <td>{{ product.category.name|default:"N/A" }}</td>
                 <td class="text-center">{{ product.quantity|intcomma }}</td>
                 <td class="text-right">{{ product.price|floatformat:2|intcomma }}</td>

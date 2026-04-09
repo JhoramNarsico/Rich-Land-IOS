@@ -92,7 +92,7 @@
                     <br/><span class="company-name">Rich Land Auto Supply</span>
                 </td>
                 <td style="vertical-align: bottom; text-align: right; width: 50%;">
-                    <div class="report-title">FINANCIAL STOCK REPORT</div>
+                    <div class="report-title">STOCK MOVEMENT REPORT</div>
                     <div class="report-meta">
                         Generated: {% now "F d, Y h:i A" %}<br/>
                         {% if start_date and end_date %}
@@ -223,6 +223,11 @@
 
     <!-- DETAILED LOG -->
     <h3>Detailed Transaction Log</h3>
+    {% if is_truncated %}
+        <p style="font-size: 8px; color: #c0392b; font-style: italic; margin-top: -10px; margin-bottom: 10px;">
+            * Showing only the most recent {{ display_limit }} of {{ total_count }} transactions for performance. Narrow your date range to see a specific period.
+        </p>
+    {% endif %}
     <table class="data-table">
         <thead>
             <tr>
@@ -243,7 +248,7 @@
                         {{ transaction.timestamp|date:"Y-m-d" }}<br/>
                         <small style="color: #7f8c8d;">{{ transaction.timestamp|date:"H:i" }}</small>
                     </td>
-                    <td>{{ transaction.product.name }}</td>
+                    <td class="bold">{{ transaction.product.name }}</td>
                     <td>{{ transaction.product.sku }}</td>
                     
                     <!-- TYPE -->
