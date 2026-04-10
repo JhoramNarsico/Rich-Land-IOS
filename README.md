@@ -1,13 +1,3 @@
-<div align="center">
-  <img src="richland_inventory/static/images/readme_header.png" alt="Rich Land Auto Supply Logo" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
-</div>
-
-<br>
-
-> A full-featured **integrated operations system** for auto parts businesses, built with **Python**, **Django**, and **Bootstrap 5**. Track products, manage stock-in/stock-out transactions, view edit history, and generate PDF/CSV reports—all in one application.
-
-Render Deployment Link: https://rich-land-inventory-system.onrender.com/
----
 
 ##  Team Members
 
@@ -31,29 +21,6 @@ Render Deployment Link: https://rich-land-inventory-system.onrender.com/
 -  **RESTful API** with **Django REST Framework**  
 -  **Interactive API docs** via **Swagger UI** (`drf-spectacular`)  
 -  **Role-based access** and secure admin panel
-
----
-
-## Technology Stack
-
-### Backend
-- **Language**: Python 3.8+  
-- **Framework**: Django  
-- **Database**: MySQL  
-- **API**: Django REST Framework (DRF)
-
-### Libraries
-- `django-simple-history` → Audit logs  
-- `drf-spectacular` → OpenAPI 3.0 documentation  
-- `xhtml2pdf` → PDF report generation  
-- `python-decouple` → Secure `.env` management  
-- `PyMySQL` → MySQL database driver
-
-### Frontend
-- **Templates**: Django HTML  
-- **Styling**: Bootstrap 5  
-- **Interactivity**: Vanilla JavaScript + Bootstrap JS
-
 
 ### 1. Clone the Repository
 
@@ -159,7 +126,7 @@ python manage.py flush
  ```bash
 python manage.py seed_data
 ```
-## Running with Docker (Milestone 2)
+## Running with Docker
 
 Utilizing Docker ensures environment parity and simplifies the setup of the MySQL database and Python dependencies.
 
