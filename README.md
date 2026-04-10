@@ -159,3 +159,17 @@ python manage.py flush
  ```bash
 python manage.py seed_data
 ```
+## Running with Docker (Milestone 2)
+
+Utilizing Docker ensures environment parity and simplifies the setup of the MySQL database and Python dependencies.
+
+1.  **Build and Start the Containers**
+    This command builds the Django image and starts both the web and database services.
+    ```bash
+    docker-compose up --build
+    ```
+
+2.  **Initialize the Database**
+    Once the containers are running, execute the migrations:
+    ```bash
+    docker-compose exec web python richland_inventory/manage.py migrate
