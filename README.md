@@ -171,7 +171,7 @@ Utilizing Docker ensures environment parity and simplifies the setup of the MySQ
     Once the containers are running, execute the migrations:
     ```bash
     docker-compose exec web python richland_inventory/manage.py migrate
-        ```
+    ```
 
 3.  **Seed the Database (Optional)**
     Populate the system with comprehensive initial test data:
