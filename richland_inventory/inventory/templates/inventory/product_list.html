@@ -9,20 +9,20 @@
     <!-- 1. HEADER & ACTIONS -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
-            <h2 class="fw-bold text-dark mb-1">Product Inventory</h2>
+            <h1 class="fw-bold text-dark mb-1 h2">Product Inventory</h1>
             <p class="text-muted small mb-0">Manage catalog, track stock levels, and pricing.</p>
         </div>
         <div class="d-flex gap-2">
-            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
-                <i class="fas fa-filter me-2"></i>Filters
+            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="true" aria-controls="filterPanel">
+                <i class="fas fa-filter me-2" aria-hidden="true"></i>Filters
             </button>
             
             <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#addCategoryModal">
-                <i class="fas fa-folder-plus me-2"></i>Category
+                <i class="fas fa-folder-plus me-2" aria-hidden="true"></i>Category
             </button>
             {% if perms.inventory.add_product %}
                 <a href="{% url 'inventory:product_create' %}" class="btn btn-primary shadow-sm">
-                    <i class="fas fa-plus me-2"></i>New Product
+                    <i class="fas fa-plus me-2" aria-hidden="true"></i>New Product
                 </a>
             {% endif %}
         </div>
@@ -38,36 +38,41 @@
                     
                     <!-- Search -->
                     <div class="col-md-4">
+                        <label for="{{ filter_form.q.id_for_label }}" class="visually-hidden">Search products</label>
                         <div class="input-group">
-                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
+                            <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted" aria-hidden="true"></i></span>
                             {{ filter_form.q }}
                         </div>
                     </div>
 
                     <!-- Filters -->
                     <div class="col-md-2">
+                        <label for="{{ filter_form.category.id_for_label }}" class="visually-hidden">Filter by Category</label>
                         {{ filter_form.category }}
                     </div>
                     <div class="col-md-2">
+                        <label for="{{ filter_form.stock_status.id_for_label }}" class="visually-hidden">Filter by Stock Status</label>
                         {{ filter_form.stock_status }}
                     </div>
                     <div class="col-md-2">
+                        <label for="{{ filter_form.product_status.id_for_label }}" class="visually-hidden">Filter by Product Status</label>
                         {{ filter_form.product_status }}
                     </div>
                     
                     <!-- Sort & Actions -->
                     <div class="col-md-2">
                         <div class="d-flex gap-1">
+                            <label for="{{ filter_form.sort_by.id_for_label }}" class="visually-hidden">Sort results</label>
                             {{ filter_form.sort_by }}
                             
                             <!-- Added Explicit Submit Button -->
-                            <button type="submit" class="btn btn-primary" title="Apply Filters">
-                                <i class="fas fa-arrow-right"></i>
+                            <button type="submit" class="btn btn-primary" aria-label="Apply Filters" title="Apply Filters">
+                                <i class="fas fa-arrow-right" aria-hidden="true"></i>
                             </button>
                             
                             <!-- Reset Button -->
-                            <a href="{% url 'inventory:product_list' %}" class="btn btn-light border" title="Reset Filters">
-                                <i class="fas fa-redo-alt text-muted"></i>
+                            <a href="{% url 'inventory:product_list' %}" class="btn btn-light border" aria-label="Reset Filters" title="Reset Filters">
+                                <i class="fas fa-redo-alt text-muted" aria-hidden="true"></i>
                             </a>
                         </div>
                     </div>
@@ -78,9 +83,9 @@
 
     <!-- 3. VIEW TOGGLE & DATA -->
     <div class="d-flex justify-content-end mb-3">
-        <div class="btn-group" role="group">
-            <button type="button" class="btn btn-sm btn-outline-secondary active" id="table-view-btn" title="List View"><i class="fas fa-list"></i></button>
-            <button type="button" class="btn btn-sm btn-outline-secondary" id="card-view-btn" title="Grid View"><i class="fas fa-th-large"></i></button>
+        <div class="btn-group" role="group" aria-label="Switch inventory layout view">
+            <button type="button" class="btn btn-sm btn-outline-secondary active" id="table-view-btn" aria-label="List View" title="List View"><i class="fas fa-list" aria-hidden="true"></i></button>
+            <button type="button" class="btn btn-sm btn-outline-secondary" id="card-view-btn" aria-label="Grid View" title="Grid View"><i class="fas fa-th-large" aria-hidden="true"></i></button>
         </div>
     </div>
 
@@ -88,15 +93,15 @@
     <div id="table-view">
         <div class="card border-0 shadow-sm overflow-hidden">
             <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
+                <table class="table table-hover align-middle mb-0" aria-label="Inventory Items">
                     <thead class="bg-light">
                         <tr>
-                            <th style="width: 35%;" class="ps-4">Product</th>
-                            <th style="width: 15%;">Category</th>
-                            <th style="width: 20%;">Stock Level</th>
-                            <th style="width: 15%;" class="text-end">Price (₱)</th>
-                            <th style="width: 10%;" class="text-center">Status</th>
-                            <th style="width: 10%;"></th> <!-- Actions -->
+                            <th scope="col" style="width: 35%;" class="ps-4">Product</th>
+                            <th scope="col" style="width: 15%;">Category</th>
+                            <th scope="col" style="width: 20%;">Stock Level</th>
+                            <th scope="col" style="width: 15%;" class="text-end">Price (₱)</th>
+                            <th scope="col" style="width: 10%;" class="text-center">Status</th>
+                            <th scope="col" style="width: 10%;"><span class="visually-hidden">Actions</span></th> 
                         </tr>
                     </thead>
                     <tbody id="product-table-body" class="bg-white">
@@ -105,9 +110,9 @@
                             <td class="ps-4">
                                 <div class="d-flex align-items-center">
                                     {% if product.image %}
-                                        <img src="{{ product.image.url }}" alt="{{ product.name }}" class="rounded me-3 shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">
+                                        <img src="{{ product.image.url }}" alt="Image of {{ product.name }}" class="rounded me-3 shadow-sm" style="width: 50px; height: 50px; object-fit: cover;">
                                     {% else %}
-                                        <div class="rounded me-3 bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border: 1px solid #eee;">
+                                        <div class="rounded me-3 bg-light d-flex align-items-center justify-content-center" style="width: 50px; height: 50px; border: 1px solid #eee;" aria-hidden="true">
                                             <i class="fas fa-image text-muted"></i>
                                         </div>
                                     {% endif %}
@@ -135,10 +140,10 @@
                                 {% if product.status == 'ACTIVE' %}<span class="badge bg-success-subtle text-success">Active</span>
                                 {% else %}<span class="badge bg-secondary-subtle text-secondary">Inactive</span>{% endif %}
                             </td>
-                            <td class="text-end pe-3"><a href="{{ product.get_absolute_url }}" class="btn btn-sm btn-light border"><i class="fas fa-chevron-right"></i></a></td>
+                            <td class="text-end pe-3"><a href="{{ product.get_absolute_url }}" class="btn btn-sm btn-light border" aria-label="View {{ product.name }} details"><i class="fas fa-chevron-right" aria-hidden="true"></i></a></td>
                         </tr>
                         {% empty %}
-                        <tr><td colspan="6" class="text-center py-5 text-muted">No products found.</td></tr>
+                        <tr><td colspan="6" class="text-center py-5 text-muted" role="alert">No products found.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
@@ -147,18 +152,18 @@
     </div>
 
     <!-- CARD VIEW (GRID) -->
-    <div id="card-view" style="display: none;">
+    <div id="card-view" style="display: none;" aria-live="polite">
         <div class="row g-4">
             {% for product in product_list %}
             <div class="col-md-6 col-lg-4 col-xl-3">
                 <!-- ADDED GRID VIEW HOVER ANIMS   -->
                 <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                     {% if product.image %}
-                        <a href="{{ product.get_absolute_url }}">
-                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 180px; object-fit: cover;">
+                        <a href="{{ product.get_absolute_url }}" aria-label="View {{ product.name }} details">
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="Image of {{ product.name }}" style="height: 180px; object-fit: cover;">
                         </a>
                     {% else %}
-                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;">
+                        <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 180px;" aria-hidden="true">
                             <i class="fas fa-image fa-3x text-muted opacity-50"></i>
                         </div>
                     {% endif %}
@@ -194,7 +199,7 @@
                                 {% endif %}
                             </div>
 
-                            <div class="progress" style="height: 4px;">
+                            <div class="progress" style="height: 4px;" aria-hidden="true">
                                 {% widthratio product.quantity product.reorder_level|default:1 100 as pct %}
                                 <div class="progress-bar 
                                     {% if product.quantity == 0 %}bg-danger
@@ -209,8 +214,8 @@
             </div>
             {% empty %}
             <div class="col-12 text-center py-5">
-                <div class="text-muted mb-3"><i class="fas fa-box-open fa-3x opacity-25"></i></div>
-                <p class="text-muted fw-medium">No products found matching your criteria.</p>
+                <div class="text-muted mb-3"><i class="fas fa-box-open fa-3x opacity-25" aria-hidden="true"></i></div>
+                <p class="text-muted fw-medium" role="alert">No products found matching your criteria.</p>
                 <a href="{% url 'inventory:product_list' %}" class="btn btn-sm btn-outline-primary">Clear Filters</a>
             </div>
             {% endfor %}
@@ -220,30 +225,30 @@
     <!-- 4. PAGINATION -->
     {% if is_paginated %}
     <div class="d-flex justify-content-center mt-5">
-        <nav aria-label="Page navigation">
+        <nav aria-label="Product pagination navigation">
             <ul class="pagination shadow-sm">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}">Previous</a>
+                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}" aria-label="Go to previous page">Previous</a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
+                    <li class="page-item disabled" aria-hidden="true"><span class="page-link border-0">Previous</span></li>
                 {% endif %}
                 {% for i in elided_page_range %}
                     {% if i == page_obj.paginator.ELLIPSIS %}
-                        <li class="page-item disabled"><span class="page-link border-0">...</span></li>
+                        <li class="page-item disabled" aria-hidden="true"><span class="page-link border-0">...</span></li>
                     {% else %}
                         {% if page_obj.number == i %}
-                            <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                            <li class="page-item active" aria-current="page"><span class="page-link border-0">{{ i }}</span></li>
                         {% else %}
-                            <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
+                            <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}" aria-label="Go to page {{ i }}">{{ i }}</a></li>
                         {% endif %}
                     {% endif %}
                 {% endfor %}
                 {% if page_obj.has_next %}
-                    <li class="page-item"><a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a></li>
+                    <li class="page-item"><a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}" aria-label="Go to next page">Next</a></li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link border-0">Next</span></li>
+                    <li class="page-item disabled" aria-hidden="true"><span class="page-link border-0">Next</span></li>
                 {% endif %}
             </ul>
         </nav>
@@ -251,17 +256,17 @@
     {% endif %}
 
     <!-- Add Category Modal -->
-    <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="addCategoryModal" tabindex="-1" aria-labelledby="addCategoryModalLabel" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow">
           <div class="modal-header bg-light">
-            <h5 class="modal-title fw-bold text-dark">Add New Category</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            <h5 class="modal-title fw-bold text-dark" id="addCategoryModalLabel">Add New Category</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close modal"></button>
           </div>
           <form method="post" action="{% url 'inventory:add_category_ajax' %}" id="addCategoryForm">
             {% csrf_token %}
             <div class="modal-body p-4">
-                <div id="category-form-errors" class="alert alert-danger d-none"></div>
+                <div id="category-form-errors" class="alert alert-danger d-none" role="alert"></div>
                 <label for="{{ category_form.name.id_for_label }}" class="form-label small fw-bold text-uppercase">Category Name</label>
                 {{ category_form.name }}
             </div>
