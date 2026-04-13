@@ -31,6 +31,10 @@ def generate_sow_id():
 # --- CUSTOMER & BILLING MODELS (NEW) ---
 
 class Customer(models.Model):
+    """
+    Represents a client or business entity that purchases products or services.
+    Tracks contact information, tax details, and financial credit limits for accounts.
+    """
     customer_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
     name = models.CharField(max_length=150, unique=True)
     email = models.EmailField(blank=True, null=True)
@@ -48,7 +52,7 @@ class Customer(models.Model):
         ordering = ['name']
 
     def get_balance(self):
-        """Calculates current outstanding balance (Credit Sales - Payments)"""
+        """Calculates current outstanding balance by subtracting total payments from credit sales."""
         # Sum of credit sales (Total Amount of sales marked as CREDIT)
         credit_sales = self.purchases.filter(payment_method='CREDIT').aggregate(
             total=Sum('total_amount')
@@ -89,6 +93,10 @@ class CustomerPayment(models.Model):
         return f"Payment {self.amount} - {self.customer.name}"
 
 class HydraulicSow(models.Model):
+    """
+    Represents a Scope of Work (SOW) for custom hydraulic hose assemblies.
+    Stores technical specifications such as hose type, diameter, fittings, and associated costs.
+    """
     sow_id = models.CharField(max_length=20, unique=True, editable=False, null=True)
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='sows')
     date_created = models.DateTimeField(auto_now_add=True)
@@ -109,7 +117,7 @@ class HydraulicSow(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
-        ordering = ['-date_created']
+        ordering =['-date_created']
 
     def save(self, *args, **kwargs):
         if not self.sow_id:
@@ -188,6 +196,10 @@ class POSSale(models.Model):
         return f"Receipt #{self.receipt_id}"
 
 class Category(models.Model):
+    """
+    Used to logically group related products together for easier filtering, 
+    inventory management, and reporting.
+    """
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
     class Meta:
@@ -202,6 +214,10 @@ class Category(models.Model):
         super().save(*args, **kwargs)
 
 class Product(models.Model): 
+    """
+    The core inventory item. Tracks current stock quantity, pricing, and active status.
+    Includes a SimpleHistory tracker to monitor all modifications for auditing purposes.
+    """
     class Status(models.TextChoices):
         ACTIVE = 'ACTIVE', 'Active'
         DEACTIVATED = 'DEACTIVATED', 'Deactivated'
