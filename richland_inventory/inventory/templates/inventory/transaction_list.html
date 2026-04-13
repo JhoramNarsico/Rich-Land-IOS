@@ -9,12 +9,12 @@
     <!-- 1. HEADER -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
-            <h2 class="fw-bold text-dark mb-1">Transaction Logs</h2>
+            <h1 class="fw-bold text-dark mb-1 h2">Transaction Logs</h1>
             <p class="text-muted small mb-0">Audit trail of all stock movements, sales, and adjustments.</p>
         </div>
         <div>
-            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
-                <i class="fas fa-filter me-2"></i>Toggle Filters
+            <button class="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel" aria-expanded="true" aria-controls="filterPanel">
+                <i class="fas fa-filter me-2" aria-hidden="true"></i>Toggle Filters
             </button>
         </div>
     </div>
@@ -27,40 +27,42 @@
                     
                     <!-- Product Search -->
                     <div class="col-md-4 col-lg-3">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Product</label>
+                        <label for="{{ filter_form.product.id_for_label }}" class="form-label small fw-bold text-uppercase text-muted">Product</label>
                         {{ filter_form.product }}
                     </div>
 
                     <!-- Filters -->
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Type</label>
+                        <label for="{{ filter_form.transaction_type.id_for_label }}" class="form-label small fw-bold text-uppercase text-muted">Type</label>
                         {{ filter_form.transaction_type }}
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Reason</label>
+                        <label for="{{ filter_form.transaction_reason.id_for_label }}" class="form-label small fw-bold text-uppercase text-muted">Reason</label>
                         {{ filter_form.transaction_reason }}
                     </div>
                     <div class="col-md-2">
-                        <label class="form-label small fw-bold text-uppercase text-muted">User</label>
+                        <label for="{{ filter_form.user.id_for_label }}" class="form-label small fw-bold text-uppercase text-muted">User</label>
                         {{ filter_form.user }}
                     </div>
 
                     <!-- Date Range -->
                     <div class="col-md-3 col-lg-2">
-                        <label class="form-label small fw-bold text-uppercase text-muted">Date Range</label>
+                        <span class="form-label small fw-bold text-uppercase text-muted d-block">Date Range</span>
                         <div class="input-group input-group-sm">
+                            <label class="visually-hidden" for="{{ filter_form.start_date.id_for_label }}">Start Date</label>
                             {{ filter_form.start_date }}
+                            <label class="visually-hidden" for="{{ filter_form.end_date.id_for_label }}">End Date</label>
                             {{ filter_form.end_date }}
                         </div>
                     </div>
 
                     <!-- Buttons -->
                     <div class="col-auto d-flex gap-2">
-                        <button type="submit" class="btn btn-primary shadow-sm" title="Apply Filters">
-                            <i class="fas fa-filter"></i>
+                        <button type="submit" class="btn btn-primary shadow-sm" aria-label="Apply Filters" title="Apply Filters">
+                            <i class="fas fa-filter" aria-hidden="true"></i>
                         </button>
-                        <a href="{% url 'inventory:transaction_list' %}" class="btn btn-light border" title="Reset">
-                            <i class="fas fa-redo-alt text-muted"></i>
+                        <a href="{% url 'inventory:transaction_list' %}" class="btn btn-light border" aria-label="Reset Filters" title="Reset">
+                            <i class="fas fa-redo-alt text-muted" aria-hidden="true"></i>
                         </a>
                     </div>
                 </form>
@@ -71,17 +73,17 @@
     <!-- 3. TRANSACTIONS TABLE -->
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" aria-label="Transaction Audit Trail">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4 text-uppercase text-secondary small" style="width: 5%;">Type</th>
-                        <th class="text-uppercase text-secondary small" style="width: 15%;">Date</th>
-                        <th class="text-uppercase text-secondary small" style="width: 25%;">Product</th>
-                        <th class="text-uppercase text-secondary small" style="width: 15%;">Reason</th>
-                        <th class="text-center text-uppercase text-secondary small" style="width: 10%;">Qty</th>
-                        <th class="text-uppercase text-secondary small" style="width: 15%;">User</th>
-                        <th class="text-uppercase text-secondary small" style="width: 10%;">Notes</th>
-                        <th class="text-end text-uppercase text-secondary small" style="width: 5%;"></th>
+                        <th scope="col" class="ps-4 text-uppercase text-secondary small" style="width: 5%;">Type</th>
+                        <th scope="col" class="text-uppercase text-secondary small" style="width: 15%;">Date</th>
+                        <th scope="col" class="text-uppercase text-secondary small" style="width: 25%;">Product</th>
+                        <th scope="col" class="text-uppercase text-secondary small" style="width: 15%;">Reason</th>
+                        <th scope="col" class="text-center text-uppercase text-secondary small" style="width: 10%;">Qty</th>
+                        <th scope="col" class="text-uppercase text-secondary small" style="width: 15%;">User</th>
+                        <th scope="col" class="text-uppercase text-secondary small" style="width: 10%;">Notes</th>
+                        <th scope="col" class="text-end text-uppercase text-secondary small" style="width: 5%;"><span class="visually-hidden">Actions</span></th>
                     </tr>
                 </thead>
                 <tbody class="bg-white">
@@ -90,12 +92,12 @@
                         <!-- TYPE BADGE -->
                         <td class="ps-4">
                             {% if transaction.transaction_type == 'IN' %}
-                                <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Stock In">
-                                    <i class="fas fa-arrow-down"></i>
+                                <div class="rounded-circle bg-success-subtle text-success d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Stock In" aria-label="Stock In">
+                                    <i class="fas fa-arrow-down" aria-hidden="true"></i>
                                 </div>
                             {% else %}
-                                <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Stock Out">
-                                    <i class="fas fa-arrow-up"></i>
+                                <div class="rounded-circle bg-danger-subtle text-danger d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" title="Stock Out" aria-label="Stock Out">
+                                    <i class="fas fa-arrow-up" aria-hidden="true"></i>
                                 </div>
                             {% endif %}
                         </td>
@@ -141,7 +143,7 @@
                         <!-- USER -->
                         <td>
                             <div class="d-flex align-items-center">
-                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" style="width: 28px; height: 28px; font-size: 12px;">
+                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" style="width: 28px; height: 28px; font-size: 12px;" aria-hidden="true">
                                     {{ transaction.user.username|slice:":1"|upper }}
                                 </div>
                                 <span class="small text-dark">{{ transaction.user.username }}</span>
@@ -172,16 +174,17 @@
                                     data-bs-qty="{{ transaction.quantity|intcomma }}"
                                     data-bs-user="{{ transaction.user.username }}"
                                     data-bs-notes="{{ transaction.notes|default:'-' }}"
+                                    aria-label="View Details for {{ transaction.product.name }}"
                                     title="View Details">
-                                <i class="fas fa-eye"></i>
+                                <i class="fas fa-eye" aria-hidden="true"></i>
                             </button>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
                         <td colspan="8" class="text-center py-5">
-                            <div class="text-muted mb-2"><i class="fas fa-search fa-2x opacity-25"></i></div>
-                            <p class="text-muted fw-medium">No transactions found matching your criteria.</p>
+                            <div class="text-muted mb-2"><i class="fas fa-search fa-2x opacity-25" aria-hidden="true"></i></div>
+                            <p class="text-muted fw-medium" role="alert">No transactions found matching your criteria.</p>
                             <a href="{% url 'inventory:transaction_list' %}" class="btn btn-sm btn-outline-primary">Clear Filters</a>
                         </td>
                     </tr>
@@ -194,34 +197,34 @@
     <!-- 4. PAGINATION -->
     {% if is_paginated %}
     <div class="d-flex justify-content-center mt-5">
-        <nav aria-label="Page navigation">
+        <nav aria-label="Transaction pagination navigation">
             <ul class="pagination shadow-sm">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}">Previous</a>
+                        <a class="page-link border-0" href="?page={{ page_obj.previous_page_number }}&amp;{{ query_params }}" aria-label="Go to previous page">Previous</a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link border-0">Previous</span></li>
+                    <li class="page-item disabled" aria-hidden="true"><span class="page-link border-0">Previous</span></li>
                 {% endif %}
                 
                 {% for i in elided_page_range %}
                     {% if i == page_obj.paginator.ELLIPSIS %}
-                        <li class="page-item disabled"><span class="page-link border-0">...</span></li>
+                        <li class="page-item disabled" aria-hidden="true"><span class="page-link border-0">...</span></li>
                     {% else %}
                         {% if page_obj.number == i %}
-                            <li class="page-item active"><span class="page-link border-0">{{ i }}</span></li>
+                            <li class="page-item active" aria-current="page"><span class="page-link border-0">{{ i }}</span></li>
                         {% else %}
-                            <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}">{{ i }}</a></li>
+                            <li class="page-item"><a class="page-link border-0" href="?page={{ i }}&amp;{{ query_params }}" aria-label="Go to page {{ i }}">{{ i }}</a></li>
                         {% endif %}
                     {% endif %}
                 {% endfor %}
                 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}">Next</a>
+                        <a class="page-link border-0" href="?page={{ page_obj.next_page_number }}&amp;{{ query_params }}" aria-label="Go to next page">Next</a>
                     </li>
                 {% else %}
-                    <li class="page-item disabled"><span class="page-link border-0">Next</span></li>
+                    <li class="page-item disabled" aria-hidden="true"><span class="page-link border-0">Next</span></li>
                 {% endif %}
             </ul>
         </nav>
@@ -229,12 +232,12 @@
     {% endif %}
 
     <!-- Transaction Details Modal -->
-    <div class="modal fade" id="transactionModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="transactionModal" tabindex="-1" aria-labelledby="transactionModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-0 shadow">
                 <div class="modal-header bg-light">
-                    <h5 class="modal-title fw-bold">Transaction Details</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <h5 class="modal-title fw-bold" id="transactionModalLabel">Transaction Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close modal"></button>
                 </div>
                 <div class="modal-body p-4">
                     <div class="row g-3">
@@ -262,7 +265,7 @@
                         <div class="col-sm-6">
                             <label class="small text-muted text-uppercase fw-bold">User</label>
                             <div class="d-flex align-items-center">
-                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" style="width: 24px; height: 24px; font-size: 10px;">
+                                <div class="rounded-circle bg-light text-secondary d-flex align-items-center justify-content-center me-2 border" style="width: 24px; height: 24px; font-size: 10px;" aria-hidden="true">
                                     <i class="fas fa-user"></i>
                                 </div>
                                 <span id="modalUser"></span>
