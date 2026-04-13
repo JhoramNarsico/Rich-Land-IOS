@@ -8,8 +8,8 @@
         <div class="col-lg-8 col-md-10">
             <div class="card shadow-sm border-light">
                 <div class="card-header bg-light border-bottom d-flex justify-content-between align-items-center">
-                    <h4 class="mb-0 text-primary"><i class="fas fa-user-plus me-2"></i>{{ page_title }}</h4>
-                    <a href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'inventory:customer_list' %}{% endif %}" class="btn-close" aria-label="Close"></a>
+                    <h4 class="mb-0 text-primary"><i class="fas fa-user-plus me-2" aria-hidden="true"></i>{{ page_title }}</h4>
+                    <a href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'inventory:customer_list' %}{% endif %}" class="btn-close" aria-label="Close form"></a>
                 </div>
                 <div class="card-body p-4">
                     <form method="post" novalidate>
@@ -19,7 +19,7 @@
                         <input type="hidden" name="credit_limit" value="{{ form.credit_limit.value|default_if_none:'0' }}">
 
                         {% if form.non_field_errors %}
-                            <div class="alert alert-danger">
+                            <div class="alert alert-danger" role="alert">
                                 {% for error in form.non_field_errors %}
                                     <p class="mb-0">{{ error }}</p>
                                 {% endfor %}
@@ -30,9 +30,9 @@
                             <label for="{{ form.name.id_for_label }}" class="form-label">{{ form.name.label }}</label>
                             <input type="text" name="{{ form.name.name }}" id="{{ form.name.id_for_label }}"
                                    class="form-control {% if form.name.errors %}is-invalid{% endif %}"
-                                   value="{{ form.name.value|default_if_none:'' }}" autocomplete="name" required>
+                                   value="{{ form.name.value|default_if_none:'' }}" autocomplete="name" required aria-required="true">
                             {% for error in form.name.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
+                                <div class="invalid-feedback" role="alert">{{ error }}</div>
                             {% endfor %}
                         </div>
 
@@ -40,25 +40,25 @@
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }}</label>
                                 <div class="input-group">
-                                    <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                    <span class="input-group-text"><i class="fas fa-envelope" aria-hidden="true"></i></span>
                                     <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}"
                                            class="form-control {% if form.email.errors %}is-invalid{% endif %}"
                                            value="{{ form.email.value|default_if_none:'' }}" autocomplete="email">
                                 </div>
                                 {% for error in form.email.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    <div class="invalid-feedback d-block" role="alert">{{ error }}</div>
                                 {% endfor %}
                             </div>
                             <div class="col-md-6 mb-3">
                                 <label for="{{ form.phone.id_for_label }}" class="form-label">{{ form.phone.label }}</label>
                                 <div class="input-group">
-                                    <span class="input-group-text"><i class="fas fa-phone"></i></span>
+                                    <span class="input-group-text"><i class="fas fa-phone" aria-hidden="true"></i></span>
                                     <input type="text" name="{{ form.phone.name }}" id="{{ form.phone.id_for_label }}"
                                            class="form-control {% if form.phone.errors %}is-invalid{% endif %}"
                                            value="{{ form.phone.value|default_if_none:'' }}" autocomplete="tel">
                                 </div>
                                 {% for error in form.phone.errors %}
-                                    <div class="invalid-feedback d-block">{{ error }}</div>
+                                    <div class="invalid-feedback d-block" role="alert">{{ error }}</div>
                                 {% endfor %}
                             </div>
                         </div>
@@ -69,7 +69,7 @@
                                       class="form-control {% if form.address.errors %}is-invalid{% endif %}"
                                       rows="3" autocomplete="street-address">{{ form.address.value|default_if_none:'' }}</textarea>
                             {% for error in form.address.errors %}
-                                <div class="invalid-feedback">{{ error }}</div>
+                                <div class="invalid-feedback" role="alert">{{ error }}</div>
                             {% endfor %}
                         </div>
 
@@ -78,21 +78,21 @@
                                 <label for="{{ form.tax_id.id_for_label }}" class="form-label">{{ form.tax_id.label }}</label>
                                 <input type="text" name="{{ form.tax_id.name }}" id="{{ form.tax_id.id_for_label }}"
                                        class="form-control {% if form.tax_id.errors %}is-invalid{% endif %}"
-                                       value="{{ form.tax_id.value|default_if_none:'' }}" autocomplete="off">
-                                <div class="form-text">{{ form.tax_id.help_text }}</div>
+                                       value="{{ form.tax_id.value|default_if_none:'' }}" autocomplete="off" aria-describedby="taxIdHelp">
+                                <div class="form-text" id="taxIdHelp">{{ form.tax_id.help_text }}</div>
                                 {% for error in form.tax_id.errors %}
-                                    <div class="invalid-feedback">{{ error }}</div>
+                                    <div class="invalid-feedback" role="alert">{{ error }}</div>
                                 {% endfor %}
                             </div>
                         </div>
 
                         <hr class="my-4">
                         <div class="d-flex justify-content-end">
-                            <a href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'inventory:customer_list' %}{% endif %}" class="btn btn-outline-secondary me-2">
-                                <i class="fas fa-times me-1"></i>Cancel
+                            <a href="{% if object %}{{ object.get_absolute_url }}{% else %}{% url 'inventory:customer_list' %}{% endif %}" class="btn btn-outline-secondary me-2" aria-label="Cancel and return">
+                                <i class="fas fa-times me-1" aria-hidden="true"></i>Cancel
                             </a>
                             <button type="submit" class="btn btn-primary px-4">
-                                <i class="fas fa-save me-1"></i>Save
+                                <i class="fas fa-save me-1" aria-hidden="true"></i>Save
                             </button>
                         </div>
                     </form>
