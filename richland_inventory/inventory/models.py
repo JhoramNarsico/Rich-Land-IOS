@@ -1,4 +1,7 @@
-# inventory/models.py
+"""
+Database models for the inventory management system.
+Contains data structures for customers, inventory, point of sale, and expenses.
+"""
 
 import uuid
 from decimal import Decimal
@@ -11,24 +14,30 @@ from simple_history.models import HistoricalRecords
 from django.core.validators import MinValueValidator
 from django.db.models import Sum
 
+
 # --- HELPER FUNCTIONS ---
+
 def generate_po_number():
     """Generates a unique PO number like 'PO-1A2B3C4D'"""
     return f"PO-{uuid.uuid4().hex[:8].upper()}"
+
 
 def generate_supplier_id():
     """Generates a unique Supplier ID like 'SUP-1A2B3C4D'"""
     return f"SUP-{uuid.uuid4().hex[:8].upper()}"
 
+
 def generate_customer_id():
     """Generates a unique Customer ID like 'CUST-1A2B3C4D'"""
     return f"CUST-{uuid.uuid4().hex[:8].upper()}"
+
 
 def generate_sow_id():
     """Generates a unique SOW ID like 'JOB-1A2B3C4D'"""
     return f"JOB-{uuid.uuid4().hex[:8].upper()}"
 
-# --- CUSTOMER & BILLING MODELS (NEW) ---
+
+# --- CUSTOMER & BILLING MODELS ---
 
 class Customer(models.Model):
     """
@@ -76,8 +85,11 @@ class Customer(models.Model):
     def __str__(self):
         return self.name
 
+
 class CustomerPayment(models.Model):
-    """Tracks payments made by customers towards their balance"""
+    """
+    Tracks payments made by customers towards their balance.
+    """
     customer = models.ForeignKey(Customer, on_delete=models.CASCADE, related_name='payments')
     sale_paid = models.ForeignKey('POSSale', on_delete=models.SET_NULL, null=True, blank=True, related_name='payments_received', help_text="The specific credit sale this payment is for.")
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
@@ -91,6 +103,7 @@ class CustomerPayment(models.Model):
 
     def __str__(self):
         return f"Payment {self.amount} - {self.customer.name}"
+
 
 class HydraulicSow(models.Model):
     """
@@ -117,7 +130,7 @@ class HydraulicSow(models.Model):
     notes = models.TextField(blank=True)
 
     class Meta:
-        ordering =['-date_created']
+        ordering = ['-date_created']
 
     def save(self, *args, **kwargs):
         if not self.sow_id:
@@ -127,10 +140,13 @@ class HydraulicSow(models.Model):
     def __str__(self):
         return f"{self.sow_id} - {self.customer.name}"
 
+
 # --- EXPENSE TRACKING ---
 
 class ExpenseCategory(models.Model):
-    """Categories for expenses, e.g., Rent, Utilities, Supplies."""
+    """
+    Categories for expenses, e.g., Rent, Utilities, Supplies.
+    """
     name = models.CharField(max_length=100, unique=True)
 
     class Meta:
@@ -141,8 +157,11 @@ class ExpenseCategory(models.Model):
     def __str__(self):
         return self.name
 
+
 class Expense(models.Model):
-    """Represents a single business expense."""
+    """
+    Represents a single business expense.
+    """
     category = models.ForeignKey(ExpenseCategory, on_delete=models.SET_NULL, null=True, blank=True)
     description = models.CharField(max_length=255)
     amount = models.DecimalField(max_digits=10, decimal_places=2, validators=[MinValueValidator(Decimal('0.01'))])
@@ -156,6 +175,7 @@ class Expense(models.Model):
 
     def __str__(self):
         return f"{self.description} - {self.amount}"
+
 
 # --- CORE INVENTORY MODELS ---
 
@@ -195,6 +215,7 @@ class POSSale(models.Model):
     def __str__(self):
         return f"Receipt #{self.receipt_id}"
 
+
 class Category(models.Model):
     """
     Used to logically group related products together for easier filtering, 
@@ -202,16 +223,20 @@ class Category(models.Model):
     """
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(max_length=120, unique=True, blank=True)
+    
     class Meta:
         ordering = ['name']
         verbose_name = 'Category'
         verbose_name_plural = 'Categories'
+        
     def __str__(self):
         return self.name
+        
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
         super().save(*args, **kwargs)
+
 
 class Product(models.Model): 
     """
@@ -260,7 +285,12 @@ class Product(models.Model):
     def __str__(self):
         return self.name
 
+
 class StockTransaction(models.Model):
+    """
+    Records every individual instance of stock moving in or out of the system.
+    Provides an audit trail for stock modifications.
+    """
     class TransactionType(models.TextChoices):
         IN = 'IN', 'Stock In'
         OUT = 'OUT', 'Stock Out'
@@ -299,12 +329,12 @@ class StockTransaction(models.Model):
 
     class Meta:
         ordering = ['-timestamp']
-        permissions = [
+        permissions =[
             ("can_adjust_stock", "Can adjust stock quantities"),
             ("can_view_history", "Can view product edit history"),
             ("can_view_reports", "Can view and generate reports"),
         ]
-        indexes = [
+        indexes =[
             models.Index(fields=['transaction_type', 'timestamp']),
             models.Index(fields=['transaction_reason']),
         ]
@@ -312,8 +342,11 @@ class StockTransaction(models.Model):
     def __str__(self):
         return f'{self.transaction_type} ({self.get_transaction_reason_display()}) - {self.product.name}'
 
+
 class PriceOverrideLog(models.Model):
-    """Logs instances where a product's price was manually lowered in the POS."""
+    """
+    Logs instances where a product's price was manually lowered in the POS.
+    """
     pos_sale = models.ForeignKey(POSSale, on_delete=models.CASCADE, related_name='price_overrides')
     product = models.ForeignKey(Product, on_delete=models.PROTECT, related_name='price_overrides')
     salesman = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
@@ -334,7 +367,11 @@ class PriceOverrideLog(models.Model):
     def price_difference(self):
         return self.original_price - self.override_price
 
+
 class Supplier(models.Model):
+    """
+    Vendors or manufacturers that provide products for the business.
+    """
     supplier_id = models.CharField(max_length=20, unique=True, editable=False, null=True, blank=True)
     name = models.CharField(max_length=150, unique=True)
     contact_person = models.CharField(max_length=100, blank=True)
@@ -352,7 +389,11 @@ class Supplier(models.Model):
     def __str__(self):
         return self.name
 
+
 class PurchaseOrder(models.Model):
+    """
+    Tracks orders placed with suppliers for restocking products.
+    """
     STATUS_CHOICES = (
         ('PENDING', 'Pending (In Delivery)'),
         ('COMPLETED', 'Arrived (Ready to Receive)'),
@@ -384,6 +425,7 @@ class PurchaseOrder(models.Model):
         super().save(*args, **kwargs)
 
     def complete_order(self, user):
+        """Processes a received PO by automatically adding items into stock."""
         if self.status == 'RECEIVED':
             return 
 
@@ -407,7 +449,11 @@ class PurchaseOrder(models.Model):
                 product.last_purchase_date = timezone.now()
                 product.save()
 
+
 class PurchaseOrderItem(models.Model):
+    """
+    Individual items included within a specific Purchase Order.
+    """
     purchase_order = models.ForeignKey(PurchaseOrder, on_delete=models.CASCADE, related_name='items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
