@@ -1,3 +1,8 @@
+"""
+Django admin configuration for the inventory application.
+Registers models and customizes the admin interface for easy management.
+"""
+
 from django.contrib import admin
 from django.utils import timezone
 from django.db import transaction
@@ -5,6 +10,10 @@ from django.db.models import Sum, Q, DecimalField, OuterRef, Subquery, F
 from django.db.models.functions import Coalesce
 from decimal import Decimal
 from simple_history.admin import SimpleHistoryAdmin
+from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+
 from .models import (
     Product, Category, StockTransaction, Supplier, PurchaseOrder, PurchaseOrderItem,
     Customer, CustomerPayment, HydraulicSow, POSSale, Expense, ExpenseCategory,
@@ -16,15 +25,19 @@ admin.site.site_header = "Rich Land Admin"
 admin.site.site_title = "Rich Land Admin Portal"
 admin.site.index_title = "Welcome to the Rich Land Inventory Portal"
 
+
 # --- Core Inventory ---
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
+    """Admin configuration for product Categories."""
     list_display = ('name', 'slug')
     search_fields = ('name',)
     prepopulated_fields = {'slug': ('name',)}
 
+
 class StockTransactionInline(admin.TabularInline):
+    """Inline view for viewing Stock Transactions within related models."""
     model = StockTransaction
     extra = 0
     fields = ('product', 'quantity', 'selling_price', 'transaction_type', 'transaction_reason')
@@ -34,8 +47,10 @@ class StockTransactionInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+
 @admin.register(Product)
 class ProductAdmin(SimpleHistoryAdmin):
+    """Admin configuration for Product models, tracking history and caching."""
     list_display = ('name', 'sku', 'category', 'price', 'quantity', 'status', 'last_edited_on')
     list_filter = ('status', 'category', 'date_updated')
     search_fields = ('name', 'sku')
@@ -69,8 +84,10 @@ class ProductAdmin(SimpleHistoryAdmin):
             return last_record.history_date.strftime('%Y-%m-%d %H:%M')
         return "N/A"
 
+
 @admin.register(StockTransaction)
 class StockTransactionAdmin(admin.ModelAdmin):
+    """Admin configuration for direct viewing of Stock Transactions."""
     list_display = ('timestamp', 'product', 'transaction_type', 'transaction_reason', 'quantity', 'user', 'pos_sale')
     list_filter = ('timestamp', 'transaction_type', 'transaction_reason', 'user')
     search_fields = ('product__name', 'pos_sale__receipt_id', 'notes')
@@ -96,9 +113,11 @@ class StockTransactionAdmin(admin.ModelAdmin):
     def has_add_permission(self, request):
         return False
 
+
 # --- Customer Relationship Management ---
 
 class CustomerPaymentInline(admin.TabularInline):
+    """Inline view for viewing Customer Payments."""
     model = CustomerPayment
     extra = 0
     fields = ('payment_date', 'amount', 'reference_number', 'notes')
@@ -108,7 +127,9 @@ class CustomerPaymentInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+
 class HydraulicSowInline(admin.TabularInline):
+    """Inline view for viewing scopes of work tied to a customer."""
     model = HydraulicSow
     extra = 0
     fields = ('date_created', 'application', 'hose_type', 'length')
@@ -118,8 +139,10 @@ class HydraulicSowInline(admin.TabularInline):
     def has_add_permission(self, request, obj=None):
         return False
 
+
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
+    """Admin configuration for Customer profiles and financial balances."""
     list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance_display')
     search_fields = ('name', 'customer_id', 'email', 'phone')
     inlines = [CustomerPaymentInline, HydraulicSowInline]
@@ -153,8 +176,10 @@ class CustomerAdmin(admin.ModelAdmin):
     def current_balance_display(self, obj):
         return f"{obj._balance:,.2f}"
 
+
 @admin.register(CustomerPayment)
 class CustomerPaymentAdmin(admin.ModelAdmin):
+    """Admin configuration for handling individual customer payments."""
     list_display = ('customer', 'amount', 'payment_date', 'reference_number', 'sale_paid', 'recorded_by')
     list_filter = ('payment_date',)
     search_fields = ('customer__name', 'reference_number', 'sale_paid__receipt_id')
@@ -164,17 +189,21 @@ class CustomerPaymentAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         clear_dashboard_cache()
 
+
 @admin.register(HydraulicSow)
 class HydraulicSowAdmin(admin.ModelAdmin):
+    """Admin configuration for customized scope of work requests."""
     list_display = ('customer', 'date_created', 'application', 'hose_type')
     list_filter = ('date_created',)
     search_fields = ('customer__name', 'application', 'notes')
     autocomplete_fields = ('customer',)
 
+
 # --- Point of Sale ---
 
 @admin.register(POSSale)
 class POSSaleAdmin(admin.ModelAdmin):
+    """Admin configuration for managing point of sale receipts."""
     list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'has_price_override')
     list_filter = ('timestamp', 'payment_method', 'cashier', 'has_price_override')
     search_fields = ('receipt_id', 'customer__name')
@@ -198,8 +227,10 @@ class POSSaleAdmin(admin.ModelAdmin):
     def has_change_permission(self, request, obj=None):
         return False
 
+
 @admin.register(PriceOverrideLog)
 class PriceOverrideLogAdmin(admin.ModelAdmin):
+    """Admin configuration for tracking sales price overrides."""
     list_display = ('timestamp', 'pos_sale', 'product', 'salesman', 'original_price', 'override_price', 'price_difference')
     list_filter = ('timestamp', 'salesman', 'product')
     search_fields = ('pos_sale__receipt_id', 'product__name', 'salesman__username')
@@ -215,9 +246,11 @@ class PriceOverrideLogAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
+
 # --- Suppliers & Purchasing ---
 
 class PurchaseOrderItemInline(admin.TabularInline):
+    """Inline view for adding items directly to a Purchase Order."""
     model = PurchaseOrderItem
     extra = 1
     autocomplete_fields = ['product']
@@ -230,13 +263,17 @@ class PurchaseOrderItemInline(admin.TabularInline):
         return "-"
     line_total_display.short_description = "Total Amount"
 
+
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
+    """Admin configuration for managing product vendors."""
     list_display = ('name', 'supplier_id', 'contact_person', 'email', 'phone')
     search_fields = ('name', 'supplier_id', 'contact_person', 'email')
 
+
 @admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(admin.ModelAdmin):
+    """Admin configuration for viewing and completing Purchase Orders."""
     list_display = ('order_id', 'supplier', 'order_date', 'status')
     list_filter = ('status', 'order_date')
     search_fields = ('order_id', 'supplier__name')
@@ -258,15 +295,19 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
         super().save_model(request, obj, form, change)
         clear_dashboard_cache()
 
+
 # --- Expenses ---
 
 @admin.register(ExpenseCategory)
 class ExpenseCategoryAdmin(admin.ModelAdmin):
+    """Admin configuration for organizing types of expenses."""
     list_display = ('name',)
     search_fields = ('name',)
 
+
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
+    """Admin configuration for tracking business expenditures."""
     list_display = ('expense_date', 'description', 'category', 'amount', 'recorded_by')
     list_filter = ('expense_date', 'category')
     search_fields = ('description', 'category__name')
@@ -281,17 +322,15 @@ class ExpenseAdmin(admin.ModelAdmin):
         super().delete_model(request, obj)
         clear_dashboard_cache()
 
-# --- User & Group Management (Simplified for Owner) ---
 
-from django.contrib.auth.models import User, Group
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
-from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+# --- User & Group Management (Simplified for Owner) ---
 
 # Robustly unregister default models
 if admin.site.is_registered(User):
     admin.site.unregister(User)
 if admin.site.is_registered(Group):
     admin.site.unregister(Group)
+
 
 @admin.register(User)
 class UserAdmin(BaseUserAdmin):
@@ -319,6 +358,7 @@ class UserAdmin(BaseUserAdmin):
         }),
         ('Important dates', {'fields': ('last_login', 'date_joined')}),
     )
+
 
 @admin.register(Group)
 class GroupAdmin(BaseGroupAdmin):
