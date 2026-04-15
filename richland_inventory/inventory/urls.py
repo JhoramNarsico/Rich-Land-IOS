@@ -1,13 +1,17 @@
-# inventory/urls.py
+"""
+URL routing configuration for the inventory application.
+Maps frontend requests and API endpoints to their respective views.
+"""
 
 from django.urls import path
-from . import views
 from django.conf import settings
 from django.conf.urls.static import static
 
+from . import views
+
 app_name = 'inventory'
 
-urlpatterns = [
+urlpatterns =[
     # --- PRODUCT MANAGEMENT ---
     path('', views.ProductListView.as_view(), name='product_list'),
     path('product/create/', views.ProductCreateView.as_view(), name='product_create'),
@@ -15,12 +19,12 @@ urlpatterns = [
     path('product/<slug:slug>/update/', views.ProductUpdateView.as_view(), name='product_update'),
     path('product/<slug:slug>/delete/', views.ProductDeleteView.as_view(), name='product_delete'),
     
-    # Custom Actions
+    # Custom Product Actions
     path('product/<slug:slug>/toggle_status/', views.product_toggle_status, name='product_toggle_status'),
     path('product/<slug:slug>/refund/', views.product_refund, name='product_refund'),
     path('products/import/', views.import_products, name='product_import'),
     
-    # AJAX
+    # AJAX Endpoints
     path('ajax/category/add/', views.add_category_ajax, name='add_category_ajax'),
     path('ajax/expense-category/add/', views.add_expense_category_ajax, name='add_expense_category_ajax'),
     path('products/search/', views.search_products, name='product_search'),
@@ -49,11 +53,11 @@ urlpatterns = [
     path('pos/checkout/', views.pos_checkout, name='pos_checkout'),
     path('pos/sow/new/', views.pos_sow_create, name='pos_sow_create'),
     
-    # NEW: POS History & Receipt Viewing
+    # POS History & Receipt Viewing
     path('pos/history/', views.POSHistoryListView.as_view(), name='pos_history'),
     path('pos/receipt/<str:receipt_id>/', views.POSReceiptDetailView.as_view(), name='pos_receipt_detail'),
     
-     # --- CUSTOMER & BILLING ---
+    # --- CUSTOMER & BILLING ---
     path('customers/', views.CustomerListView.as_view(), name='customer_list'),
     path('customers/<int:pk>/import-ledger/', views.import_ledger_entries, name='customer_ledger_import'),
     path('customers/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),
