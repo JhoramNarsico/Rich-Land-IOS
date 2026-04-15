@@ -1,17 +1,28 @@
-# core/views.py
+"""
+Core application views.
+Handles the main dashboard display, metric aggregations, and caching logic.
+"""
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Sum, F, Q
+from django.db.models import Sum, F
 from django.utils import timezone
 from datetime import timedelta
 from django.core.cache import cache
 
 from inventory.models import Product, StockTransaction
 
+
 @login_required
 def home(request):
-    """View for the homepage dashboard with trends and caching."""
+    """
+    Renders the main dashboard for authenticated users.
+    
+    Aggregates product stock levels, calculating out-of-stock and low-stock 
+    alerts dynamically. Uses Django's caching framework to store heavy 
+    database queries (monthly revenue, stock values, and recent transactions) 
+    for 5 minutes (300 seconds) to optimize performance.
+    """
     
     # --- PART 1: LIVE DATA (Critical Alerts) ---
     active_products = Product.objects.filter(status=Product.Status.ACTIVE)
@@ -38,7 +49,6 @@ def home(request):
 
         # --- PRODUCT COUNTS ---
         total_active = active_products.count()
-        # NEW: Count Inactive Products
         total_inactive = Product.objects.filter(status=Product.Status.DEACTIVATED).count()
         
         # --- STOCK VALUE ---
@@ -78,8 +88,8 @@ def home(request):
         ).values('product__name', 'product__slug').annotate(total_out=Sum('quantity')).order_by('-total_out')[:5]
 
         dashboard_data = {
-            'total_products': total_active, # This is the main big number (Active)
-            'total_inactive': total_inactive, # NEW VARIABLE
+            'total_products': total_active,
+            'total_inactive': total_inactive,
             'total_stock_value': total_stock_value,
             'recent_products': recent_products,
             'top_stocked_in': top_stocked_in,
