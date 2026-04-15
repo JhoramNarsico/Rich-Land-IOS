@@ -1,26 +1,21 @@
+
 import csv
 import json
 import uuid
 from datetime import timedelta, datetime
 from decimal import Decimal, InvalidOperation
 
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
-
+# --- THIRD-PARTY IMPORTS ---
 from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
-from django.contrib.auth.mixins import (LoginRequiredMixin, PermissionRequiredMixin,
-                                        UserPassesTestMixin)
+from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
 from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.paginator import Paginator
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import models, transaction
-from django.db.models import (
-    Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value, OuterRef, Subquery
-)
+from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value, OuterRef, Subquery
 from django.db.models.functions import TruncDate, Coalesce
 from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, get_object_or_404, render
@@ -32,26 +27,38 @@ from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 
-from core.cache_utils import clear_dashboard_cache
+from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+from rest_framework import viewsets, permissions, filters
 
+# --- LOCAL IMPORTS ---
+from core.cache_utils import clear_dashboard_cache
 from . import importers as inventory_importers
 from .exports import (
     generate_sow_history_export, generate_expense_report, generate_customer_list_export,
     generate_customer_statement, generate_supplier_deliveries_export
 )
 from .forms import (
-    AnalyticsFilterForm, CategoryCreateForm, CustomerFilterForm, CustomerPaymentForm,
-    ExpenseFilterForm, ExpenseForm, ProductCreateForm, ProductFilterForm,
-    ProductHistoryFilterForm, ProductUpdateForm, PurchaseOrderFilterForm,
-    RefundForm, StockOutForm, StockTransactionForm, TransactionFilterForm,
-    TransactionReportForm
+    AnalyticsFilterForm, CategoryCreateForm, CustomerFilterForm, CustomerForm, 
+    CustomerPaymentForm, ExpenseFilterForm, ExpenseForm, ProductCreateForm, 
+    ProductFilterForm, ProductHistoryFilterForm, ProductUpdateForm, 
+    PurchaseOrderFilterForm, RefundForm, StockOutForm, StockTransactionForm, 
+    TransactionFilterForm, TransactionReportForm
 )
 from .models import (
     Category, Customer, CustomerPayment, Expense, ExpenseCategory, HydraulicSow,
     POSSale, PriceOverrideLog, Product, PurchaseOrder, PurchaseOrderItem,
     StockTransaction, Supplier
 )
+from .serializers import (
+    ProductSerializer, CategorySerializer, CustomerSerializer, CustomerPaymentSerializer,
+    HydraulicSowSerializer, POSSaleSerializer, ExpenseSerializer, ExpenseCategorySerializer
+)
 from .utils import render_to_pdf
+
+
 @login_required
 @permission_required('inventory.add_hydraulicsow', raise_exception=True)
 def hydraulic_sow_create(request, pk):
@@ -387,13 +394,13 @@ def import_sow_history(request, pk):
 
     instructions = {
         "title": "How to Format Your SOW Data",
-        "general": [
+        "general":[
             "Fill in your SOW (Scope of Work) data in the downloaded Excel template.",
             "Do NOT change the column headers in the 'Data' sheet.",
             "Fields marked with an asterisk (*) are REQUIRED.",
             "Delete the sample row in the 'Data' sheet before uploading."
         ],
-        "columns": [
+        "columns":[
             {"name": "Hose Type (*)", "desc": "The type of hose.", "example": "'2 Wire'"},
             {"name": "Diameter (*)", "desc": "The hose diameter.", "example": "'1/2'"},
             {"name": "Length (*)", "desc": "The length of the hose (as a number).", "example": "1000"},
@@ -445,7 +452,7 @@ def download_sow_template(request):
     ws_instructions['A9'] = "Column Guide"
     ws_instructions['A9'].font = header_font
     
-    headers = [
+    headers =[
         ("Column", "Description", "Example", "Required?"),
         ("Hose Type", "The type of hose.", "'2 Wire'", "Yes (*)"),
         ("Diameter", "The hose diameter.", "'1/2'", "Yes (*)"),
@@ -477,7 +484,7 @@ def download_sow_template(request):
     
     # --- Create Data Sheet ---
     ws_data = wb.create_sheet(title="Data")
-    data_headers = ['Hose Type', 'Diameter', 'Length', 'Pressure', 'Cost', 'Application', 'Fitting A', 'Fitting B', 'Notes']
+    data_headers =['Hose Type', 'Diameter', 'Length', 'Pressure', 'Cost', 'Application', 'Fitting A', 'Fitting B', 'Notes']
     ws_data.append(data_headers)
     ws_data.append(['2 Wire', '1/2', 1000, 3000, 1500.00, 'Excavator Boom', 'JIC F', 'BSP M', 'Urgent repair'])
     
@@ -533,7 +540,7 @@ def download_expense_template(request):
     ws_instructions['A9'] = "Column Guide"
     ws_instructions['A9'].font = header_font
     
-    headers = [
+    headers =[
         ("Column", "Description", "Example", "Required?"),
         ("Date", "Expense date (YYYY-MM-DD).", timezone.now().strftime('%Y-%m-%d'), "Yes"),
         ("Category", "Expense Category (e.g. Rent, Utilities).", "'Utilities'", "No"),
@@ -560,7 +567,7 @@ def download_expense_template(request):
     
     # --- Create Data Sheet ---
     ws_data = wb.create_sheet(title="Data")
-    data_headers = ['Date', 'Category', 'Description', 'Amount']
+    data_headers =['Date', 'Category', 'Description', 'Amount']
     ws_data.append(data_headers)
     
     # Sample Data
@@ -714,7 +721,7 @@ class ExpenseCreateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMess
         m = self.request.GET.get('month')
         y = self.request.GET.get('year')
         
-        params = []
+        params =[]
         if m: params.append(f"month={m}")
         if y: params.append(f"year={y}")
         
@@ -756,7 +763,7 @@ def import_expenses(request):
             return redirect('inventory:expense_list')
 
         try:
-            data = []
+            data =[]
             if csv_file.name.endswith('.csv'):
                 decoded_file = csv_file.read().decode('utf-8').splitlines()
                 reader = csv.DictReader(decoded_file)
@@ -805,15 +812,6 @@ def import_expenses(request):
         return redirect('inventory:expense_list')
         
     return render(request, 'inventory/expense_import.html')
-
-# DRF & Swagger Imports
-from rest_framework import viewsets, permissions, filters
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiTypes
-
-from .serializers import (
-    ProductSerializer, CategorySerializer, CustomerSerializer, CustomerPaymentSerializer,
-    HydraulicSowSerializer, POSSaleSerializer, ExpenseSerializer, ExpenseCategorySerializer
-)
 
 # --- AUTHENTICATION ---
 
@@ -976,19 +974,19 @@ def import_ledger_entries(request, pk):
 
     instructions = {
         "title": "How to Format Your Payment Data",
-        "general": [
+        "general":[
             "Fill in your payment data in the downloaded Excel template.",
             "Do NOT change the column headers in the 'Data' sheet.",
             "Delete the sample rows before uploading.",
             "Use YYYY-MM-DD format for dates."
         ],
-        "columns": [
+        "columns":[
             {"name": "Date (*)", "desc": "Payment date in YYYY-MM-DD format.", "example": timezone.now().strftime('%Y-%m-%d')},
             {"name": "Reference", "desc": "Receipt #, Check #, or Transaction Ref.", "example": "'PAY-1001'"},
             {"name": "Description", "desc": "Details about the payment.", "example": "'Partial Payment'"},
             {"name": "Payment (*)", "desc": "Amount paid by customer. Must be a positive number.", "example": "500.00"},
         ],
-        "notes": [
+        "notes":[
             "This import tool is for recording payments only. New charges must be created via POS or SOW."
         ]
     }
@@ -1032,7 +1030,7 @@ def download_ledger_template(request):
     ws_instructions['A9'] = "Column Guide"
     ws_instructions['A9'].font = header_font
     
-    headers = [
+    headers =[
         ("Column", "Description", "Example", "Required?"),
         ("Date", "Payment date (YYYY-MM-DD).", timezone.now().strftime('%Y-%m-%d'), "Yes"),
         ("Reference", "Invoice ID (to link) or Check #.", "'JOB-2A505259'", "No"),
@@ -1158,7 +1156,7 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
         ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id', 'recorded_by__username', 'notes'))
         
         # 3. Combine and Normalize
-        ledger = []
+        ledger =[]
         for s in sales_qs:
             status = "PAID"
             txn_type = 'SALE'
@@ -1332,7 +1330,7 @@ def export_statement(request, pk):
         elif 'payment' in query_lower:
             q_sales = Q(pk__in=[])
             q_payments = Q()
-        elif any(k in query_lower for k in ['credit', 'purchase']):
+        elif any(k in query_lower for k in['credit', 'purchase']):
             q_sales = Q()
             # q_payments remains based on text search
 
@@ -1344,7 +1342,7 @@ def export_statement(request, pk):
     ).values('payment_date', 'reference_number', 'amount', 'txn_type', 'sale_paid__receipt_id', 'recorded_by__username', 'notes'))
     
     # 3. Combine and Normalize
-    ledger = []
+    ledger =[]
     for s in sales_qs:
         status = "PAID"
         credit_val = Decimal('0')
@@ -1599,7 +1597,7 @@ def pos_dashboard(request):
     )
 
     # Manually process to add the full image URL
-    products_list = []
+    products_list =[]
     for p in active_products_qs:
         image_url = None
         if p.get('image'):
@@ -1644,7 +1642,7 @@ def pos_sow_create(request):
 def pos_checkout(request):
     try:
         data = json.loads(request.body)
-        items = data.get('items', [])
+        items = data.get('items',[])
         
         # New: Customer and Payment Method Logic
         customer_id = data.get('customer_id') 
@@ -1669,7 +1667,7 @@ def pos_checkout(request):
 
         # Calculate Total Cost first to validate Credit Limit
         total_calculated_cost = Decimal('0')
-        item_objects = []
+        item_objects =[]
         
         # Pre-validation Loop
         for item in items:
@@ -1744,7 +1742,7 @@ def pos_checkout(request):
                 has_price_override=sale_has_override
             )
 
-            receipt_items_response = []
+            receipt_items_response =[]
             
             # 2. Process Items
             for item_obj in item_objects:
@@ -1777,7 +1775,7 @@ def pos_checkout(request):
                 if sell_price < original_price:
                     txn_notes += f" | Price Override: {original_price:,.2f} -> {sell_price:,.2f}"
                     if override_reason:
-                        txn_notes += f" [Reason: {override_reason}]"
+                        txn_notes += f"[Reason: {override_reason}]"
 
                 StockTransaction.objects.create(
                     product=product,
@@ -2126,7 +2124,7 @@ def analytics_dashboard(request):
     cat_ids = [item['product__category'] for item in cat_qs if item['product__category']]
     categories = Category.objects.filter(id__in=cat_ids).in_bulk()
     
-    cat_labels = []
+    cat_labels =[]
     cat_values = []
     for item in cat_qs:
         cat_id = item['product__category']
@@ -2143,7 +2141,7 @@ def analytics_dashboard(request):
     prod_ids = [item['product'] for item in prod_qs]
     products = Product.objects.filter(id__in=prod_ids).in_bulk()
     
-    prod_labels = []
+    prod_labels =[]
     prod_values = []
     for item in prod_qs:
         prod_id = item['product']
@@ -2153,7 +2151,7 @@ def analytics_dashboard(request):
     
     # C. Expenses by Category
     exp_cat_qs = expenses_qs.values('category__name').annotate(total=Sum('amount')).order_by('-total')
-    exp_cat_labels = [item['category__name'] or 'Uncategorized' for item in exp_cat_qs]
+    exp_cat_labels =[item['category__name'] or 'Uncategorized' for item in exp_cat_qs]
     exp_cat_values = [float(item['total'] or 0) for item in exp_cat_qs]
     
     # D. Financial Trend (Sales vs Expenses)
@@ -2167,7 +2165,7 @@ def analytics_dashboard(request):
     
     trend_labels = [d.strftime('%b %d') for d in all_dates]
     trend_sales_values = [float(sales_map.get(d, 0)) for d in all_dates]
-    trend_expense_values = [float(exp_map.get(d, 0)) for d in all_dates]
+    trend_expense_values =[float(exp_map.get(d, 0)) for d in all_dates]
     
     # E. Sales Breakdown (Cash, Charges, Hydraulic)
     
@@ -2190,7 +2188,7 @@ def analytics_dashboard(request):
     ).aggregate(total=Sum('total_amount'))['total'] or Decimal('0')
     
     pay_labels = ['Cash', 'Charges', 'Hydraulic Jobs']
-    pay_values = [float(cash_sales), float(other_charges), float(hydraulic_sales)]
+    pay_values =[float(cash_sales), float(other_charges), float(hydraulic_sales)]
 
     context = {
         'filter_form': filter_form,
@@ -2359,18 +2357,18 @@ def import_supplier_deliveries(request, pk):
             messages.error(request, "Please upload a CSV or Excel file.")
             return redirect('inventory:supplier_detail', pk=pk)
         try:
-            data = []
+            data =[]
             if csv_file.name.endswith('.csv'):
                 decoded_file = csv_file.read().decode('utf-8').splitlines()
                 reader = csv.DictReader(decoded_file)
-                reader.fieldnames = [name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
+                reader.fieldnames =[name.strip().lower().replace(' ', '_') for name in reader.fieldnames]
                 data = list(reader)
             elif csv_file.name.endswith('.xlsx'):
                 wb = load_workbook(csv_file, data_only=True)
                 ws = wb.active
                 rows = list(ws.iter_rows(values_only=True))
                 if rows:
-                    headers = [str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[0]]
+                    headers =[str(h).strip().lower().replace(' ', '_') if h else '' for h in rows[0]]
                     for row in rows[1:]:
                         row_dict = {headers[i]: val for i, val in enumerate(row) if i < len(headers)}
                         data.append(row_dict)
@@ -2418,7 +2416,7 @@ def import_supplier_deliveries(request, pk):
 
 @extend_schema(tags=['Inventory Management'])
 class CategoryViewSet(viewsets.ModelViewSet):
-    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
+    http_method_names =['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2440,11 +2438,11 @@ class CustomerViewSet(viewsets.ModelViewSet):
     Provides full CRUD functionality for customer profiles.
     The 'balance' is a read-only calculated field.
     """
-    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
+    http_method_names =['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = Customer.objects.all().order_by('name')
     serializer_class = CustomerSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [filters.SearchFilter]
+    filter_backends =[filters.SearchFilter]
     search_fields = ['name', 'customer_id', 'email', 'phone']
 
 @extend_schema(tags=['Customers & Billing'])
@@ -2459,7 +2457,7 @@ class CustomerPaymentViewSet(viewsets.ModelViewSet):
     serializer_class = CustomerPaymentSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['customer__name', 'reference_number', 'sale_paid__receipt_id']
+    search_fields =['customer__name', 'reference_number', 'sale_paid__receipt_id']
 
     def perform_create(self, serializer):
         serializer.save(recorded_by=self.request.user)
@@ -2470,7 +2468,7 @@ class HydraulicSowViewSet(viewsets.ModelViewSet):
     API endpoint for managing Hydraulic Scope of Work (SOW) jobs.
     'created_by' is automatically set to the logged-in user on creation.
     """
-    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
+    http_method_names =['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = HydraulicSow.objects.select_related('customer', 'created_by').all()
     serializer_class = HydraulicSowSerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -2490,15 +2488,15 @@ class POSSaleViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = POSSaleSerializer
     permission_classes = [permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
-    search_fields = ['receipt_id', 'customer__name', 'cashier__username']
+    search_fields =['receipt_id', 'customer__name', 'cashier__username']
 
 @extend_schema(tags=['Expenses'])
 class ExpenseCategoryViewSet(viewsets.ModelViewSet):
     """API endpoint for managing Expense Categories."""
-    http_method_names = ['get', 'post', 'put', 'delete', 'head', 'options']
+    http_method_names =['get', 'post', 'put', 'delete', 'head', 'options']
     queryset = ExpenseCategory.objects.all()
     serializer_class = ExpenseCategorySerializer
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes =[permissions.IsAuthenticated]
     filter_backends = [filters.SearchFilter]
     search_fields = ['name']
 
@@ -2509,7 +2507,7 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     queryset = Expense.objects.select_related('category', 'recorded_by').all()
     serializer_class = ExpenseSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filter_backends = [filters.SearchFilter]
+    filter_backends =[filters.SearchFilter]
     search_fields = ['description', 'category__name']
 
     def perform_create(self, serializer):
@@ -2544,7 +2542,7 @@ def search_products(request):
             Q(name__icontains=query) | Q(sku__icontains=query)
         ).filter(status=Product.Status.ACTIVE).values('id', 'name', 'sku', 'price', 'quantity')[:20]
         return JsonResponse({'results': list(products)})
-    return JsonResponse({'results': []})
+    return JsonResponse({'results':[]})
 
 @login_required
 def sales_chart_data(request):
@@ -2578,8 +2576,8 @@ def sales_chart_data(request):
 
     # Generate continuous date range
     labels = []
-    sales_data = []
-    charges_data = []
+    sales_data =[]
+    charges_data =[]
     
     current_date = start_time.date()
     end_date = now.date()
@@ -2669,8 +2667,8 @@ def process_history_records(history_records):
             
             if prev_record:
                 delta = record.diff_against(prev_record)
-                changes = []
-                affected_fields = []
+                changes =[]
+                affected_fields =[]
                 
                 for change in delta.changes:
                     field = change.field
