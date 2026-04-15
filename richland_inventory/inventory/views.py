@@ -1,56 +1,57 @@
+import csv
 import json
 import uuid
 from datetime import timedelta, datetime
 from decimal import Decimal, InvalidOperation
 
-from django.core.serializers.json import DjangoJSONEncoder
-from django.http import HttpResponse, JsonResponse
-from django.contrib import messages
+from openpyxl import Workbook, load_workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
+
 from django.conf import settings
-from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin, UserPassesTestMixin
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required, permission_required
+from django.contrib.auth.mixins import (LoginRequiredMixin, PermissionRequiredMixin,
+                                        UserPassesTestMixin)
 from django.contrib.auth.views import LoginView
 from django.contrib.messages.views import SuccessMessageMixin
-from django.db import transaction
-from django.db.models import Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value, OuterRef, Subquery
+from django.core.paginator import Paginator
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import models, transaction
+from django.db.models import (
+    Q, F, Sum, Count, ExpressionWrapper, DecimalField, Value, OuterRef, Subquery
+)
 from django.db.models.functions import TruncDate, Coalesce
-from django.urls import reverse_lazy, reverse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import redirect, get_object_or_404, render
+from django.urls import reverse, reverse_lazy
 from django.utils import timezone
-from django.utils.text import slugify
+from django.utils.decorators import method_decorator
+from django.views.decorators.clickjacking import xframe_options_exempt
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView, DetailView, TemplateView
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
-from django.views.decorators.http import require_POST
-from django.views.decorators.clickjacking import xframe_options_exempt
-from django.utils.decorators import method_decorator
-from django.db import models
-from django.core.paginator import Paginator
-from django.shortcuts import render, get_object_or_404, redirect
-from django.contrib import messages
-from django.http import HttpResponse
-from .models import (
-    Customer, HydraulicSow, Expense, ExpenseCategory, Product, StockTransaction, 
-    Category, PurchaseOrder, Supplier, POSSale, CustomerPayment, PurchaseOrderItem,
-    PriceOverrideLog
-)
-from .forms import (
-    ExpenseFilterForm, ExpenseForm, ProductCreateForm, ProductUpdateForm, 
-    StockTransactionForm, ProductFilterForm, TransactionFilterForm, 
-    TransactionReportForm, ProductHistoryFilterForm, CategoryCreateForm, 
-    PurchaseOrderFilterForm, StockOutForm, AnalyticsFilterForm, RefundForm, 
-    CustomerForm, CustomerPaymentForm, CustomerFilterForm
-)
-from .utils import render_to_pdf
+
+from core.cache_utils import clear_dashboard_cache
+
+from . import importers as inventory_importers
 from .exports import (
     generate_sow_history_export, generate_expense_report, generate_customer_list_export,
     generate_customer_statement, generate_supplier_deliveries_export
 )
-from openpyxl import Workbook, load_workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
-from core.cache_utils import clear_dashboard_cache
-from . import importers as inventory_importers
-
+from .forms import (
+    AnalyticsFilterForm, CategoryCreateForm, CustomerFilterForm, CustomerPaymentForm,
+    ExpenseFilterForm, ExpenseForm, ProductCreateForm, ProductFilterForm,
+    ProductHistoryFilterForm, ProductUpdateForm, PurchaseOrderFilterForm,
+    RefundForm, StockOutForm, StockTransactionForm, TransactionFilterForm,
+    TransactionReportForm
+)
+from .models import (
+    Category, Customer, CustomerPayment, Expense, ExpenseCategory, HydraulicSow,
+    POSSale, PriceOverrideLog, Product, PurchaseOrder, PurchaseOrderItem,
+    StockTransaction, Supplier
+)
+from .utils import render_to_pdf
 @login_required
 @permission_required('inventory.add_hydraulicsow', raise_exception=True)
 def hydraulic_sow_create(request, pk):
