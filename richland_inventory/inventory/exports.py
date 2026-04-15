@@ -98,11 +98,21 @@ def create_header(document, title, subtitle_lines=[], width_inches=8.0):
         p2 = cell_right.add_paragraph()
         p2.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         run2 = p2.add_run(line)
+        run2.bold = True # Make metadata bold
         run2.font.name = 'Arial'
         run2.font.size = Pt(9)
         run2.font.color.rgb = RGBColor(0x7F, 0x8C, 0x8D)
     
     document.add_paragraph() # Spacer
+
+    # Add a horizontal line
+    p = document.add_paragraph()
+    p.paragraph_format.space_before = Pt(0)
+    p.paragraph_format.space_after = Pt(0)
+    pPr = p._element.get_or_add_pPr()
+    pBdr = parse_xml(r'<w:pBdr {}><w:bottom w:val="single" w:sz="6" w:space="1" w:color="auto"/></w:pBdr>'.format(nsdecls('w')))
+    pPr.append(pBdr)
+    document.add_paragraph() # Another spacer after the line
 
 def style_table_header(row, headers):
     """Styles the header row of a table."""
