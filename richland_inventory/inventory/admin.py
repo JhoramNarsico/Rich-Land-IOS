@@ -30,6 +30,10 @@ admin.site.index_title = "Welcome to the Rich Land Inventory Portal"
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the Category model.
+    Manages display, search, and slug pre-population for categories.
+    """
     """Admin configuration for product Categories."""
     list_display = ('name', 'slug')
     search_fields = ('name',)
@@ -50,6 +54,11 @@ class StockTransactionInline(admin.TabularInline):
 
 @admin.register(Product)
 class ProductAdmin(SimpleHistoryAdmin):
+    """
+    Admin configuration for the Product model, including historical tracking.
+    Manages product display, filtering, searching, and cache clearing on changes.
+    Quantity is read-only on change forms and excluded on add forms.
+    """
     """Admin configuration for Product models, tracking history and caching."""
     list_display = ('name', 'sku', 'category', 'price', 'quantity', 'status', 'last_edited_on')
     list_filter = ('status', 'category', 'date_updated')
@@ -87,6 +96,11 @@ class ProductAdmin(SimpleHistoryAdmin):
 
 @admin.register(StockTransaction)
 class StockTransactionAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the StockTransaction model.
+    Manages display, filtering, and searching for stock movements.
+    Prevents direct addition of transactions and restores stock on deletion.
+    """
     """Admin configuration for direct viewing of Stock Transactions."""
     list_display = ('timestamp', 'product', 'transaction_type', 'transaction_reason', 'quantity', 'user', 'pos_sale')
     list_filter = ('timestamp', 'transaction_type', 'transaction_reason', 'user')
@@ -142,6 +156,11 @@ class HydraulicSowInline(admin.TabularInline):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the Customer model.
+    Displays customer information, allows searching, and shows current balance.
+    Includes inlines for Customer Payments and Hydraulic Sows.
+    """
     """Admin configuration for Customer profiles and financial balances."""
     list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance_display')
     search_fields = ('name', 'customer_id', 'email', 'phone')
@@ -179,6 +198,11 @@ class CustomerAdmin(admin.ModelAdmin):
 
 @admin.register(CustomerPayment)
 class CustomerPaymentAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the CustomerPayment model.
+    Manages display, filtering, searching, and autocomplete fields for customer payments.
+    Clears dashboard cache on save.
+    """
     """Admin configuration for handling individual customer payments."""
     list_display = ('customer', 'amount', 'payment_date', 'reference_number', 'sale_paid', 'recorded_by')
     list_filter = ('payment_date',)
@@ -192,6 +216,10 @@ class CustomerPaymentAdmin(admin.ModelAdmin):
 
 @admin.register(HydraulicSow)
 class HydraulicSowAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the HydraulicSow model.
+    Manages display, filtering, searching, and autocomplete fields for hydraulic sow records.
+    """
     """Admin configuration for customized scope of work requests."""
     list_display = ('customer', 'date_created', 'application', 'hose_type')
     list_filter = ('date_created',)
@@ -203,6 +231,12 @@ class HydraulicSowAdmin(admin.ModelAdmin):
 
 @admin.register(POSSale)
 class POSSaleAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the POSSale model.
+    Manages display, filtering, and searching for Point-of-Sale transactions.
+    Includes stock transaction inlines and restores stock on sale deletion.
+    Prevents direct addition or modification of sales via admin.
+    """
     """Admin configuration for managing point of sale receipts."""
     list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'has_price_override')
     list_filter = ('timestamp', 'payment_method', 'cashier', 'has_price_override')
@@ -230,6 +264,11 @@ class POSSaleAdmin(admin.ModelAdmin):
 
 @admin.register(PriceOverrideLog)
 class PriceOverrideLogAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the PriceOverrideLog model.
+    Displays read-only price override details, allowing filtering and searching.
+    Prevents adding, changing, or deleting log entries via admin.
+    """
     """Admin configuration for tracking sales price overrides."""
     list_display = ('timestamp', 'pos_sale', 'product', 'salesman', 'original_price', 'override_price', 'price_difference')
     list_filter = ('timestamp', 'salesman', 'product')
@@ -266,6 +305,10 @@ class PurchaseOrderItemInline(admin.TabularInline):
 
 @admin.register(Supplier)
 class SupplierAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the Supplier model.
+    Manages display and searching for supplier information.
+    """
     """Admin configuration for managing product vendors."""
     list_display = ('name', 'supplier_id', 'contact_person', 'email', 'phone')
     search_fields = ('name', 'supplier_id', 'contact_person', 'email')
@@ -273,6 +316,11 @@ class SupplierAdmin(admin.ModelAdmin):
 
 @admin.register(PurchaseOrder)
 class PurchaseOrderAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the PurchaseOrder model.
+    Manages display, filtering, searching, and inlines for purchase order items.
+    Includes logic for stock-in upon status change to 'RECEIVED'.
+    """
     """Admin configuration for viewing and completing Purchase Orders."""
     list_display = ('order_id', 'supplier', 'order_date', 'status')
     list_filter = ('status', 'order_date')
@@ -300,6 +348,10 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
 
 @admin.register(ExpenseCategory)
 class ExpenseCategoryAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the ExpenseCategory model.
+    Manages display and searching for expense categories.
+    """
     """Admin configuration for organizing types of expenses."""
     list_display = ('name',)
     search_fields = ('name',)
@@ -307,6 +359,11 @@ class ExpenseCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Expense)
 class ExpenseAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the Expense model.
+    Manages display, filtering, searching, and autocomplete fields for expenses.
+    Clears dashboard cache on save and delete.
+    """
     """Admin configuration for tracking business expenditures."""
     list_display = ('expense_date', 'description', 'category', 'amount', 'recorded_by')
     list_filter = ('expense_date', 'category')

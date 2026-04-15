@@ -1,193 +1,117 @@
-<div align="center">
-  <img src="richland_inventory/static/images/readme_header.png" alt="Rich Land Auto Supply Logo" width="800" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);"/>
-</div>
+# Richland Inventory System
 
-<br>
+A comprehensive inventory management application built with Django and MySQL, designed for robust tracking, audit logging, and POS functionality.
 
-> A full-featured **integrated operations system** for auto parts businesses, built with **Python**, **Django**, and **Bootstrap 5**. Track products, manage stock-in/stock-out transactions, view edit history, and generate PDF/CSV reports—all in one application.
+## Core Features
 
-Render Deployment Link: https://rich-land-ios.onrender.com/accounts/login/
----
+*   **Product & Stock Management:** Detailed tracking of products, categories, and real-time stock levels.
+*   **Audit Logging:** Automatic tracking of all product edits and stock movements via `django-simple-history`.
+*   **POS System:** Integrated Point of Sale for managing sales, customers, and payments.
+*   **Reporting:** Generate PDF reports for inventory snapshots, sales history, and supplier deliveries.
+*   **REST API:** Fully documented API using Swagger/OpenAPI for integration.
 
-##  Team Members
+## Tech Stack
 
-| Name                      | GitHub Profile                                      |
-|--------------------------|-----------------------------------------------------|
-| Jhoram Narsico           | [github.com/jhoramnarsico](https://github.com/jhoramnarsico) |
-| Joseph Ernest Alberto    | [github.com/Jepoyskies](https://github.com/Jepoyskies) |
-| Jillian Athea Boc        | [github.com/Jillian-Athea](https://github.com/Jillian-Athea) |
-
-
+*   **Backend:** Python 3.11+, Django 5.2
+*   **Database:** MySQL 8.0 (Local/Docker) / PostgreSQL (Production)
+*   **Frontend:** Bootstrap 5, Vanilla JavaScript
+*   **DevOps:** Docker, WhiteNoise (Static Files), Render (Deployment)
 
 ---
 
-##  Key Features
+## Environment Configuration
 
--  **Full CRUD** operations for products and categories  
--  **Stock tracking** with stock-in and stock-out transactions  
--  **Audit trail** for every product change (who changed what & when)  
--  **Export reports** as **PDF** (`xhtml2pdf`) or **CSV**  
--  **Responsive UI** with **Bootstrap 5**  
--  **RESTful API** with **Django REST Framework**  
--  **Interactive API docs** via **Swagger UI** (`drf-spectacular`)  
--  **Role-based access** and secure admin panel
+The application uses `python-decouple` to manage configurations. You must create a `.env` file in the `richland_inventory/` directory.
 
----
+### `.env` Setup
+Create `richland_inventory/.env` and add the following:
 
-## Technology Stack
-
-### Backend
-- **Language**: Python 3.8+  
-- **Framework**: Django  
-- **Database**: MySQL  
-- **API**: Django REST Framework (DRF)
-
-### Libraries
-- `django-simple-history` → Audit logs  
-- `drf-spectacular` → OpenAPI 3.0 documentation  
-- `xhtml2pdf` → PDF report generation  
-- `python-decouple` → Secure `.env` management  
-- `PyMySQL` → MySQL database driver
-
-### Frontend
-- **Templates**: Django HTML  
-- **Styling**: Bootstrap 5  
-- **Interactivity**: Vanilla JavaScript + Bootstrap JS
-
-
-### 1. Clone the Repository
-
-Open your terminal or command prompt and clone the project from its GitHub repository.
-
-```bash
-# Replace <your-repository-url> with the actual URL from GitHub
-git clone <your-repository-url>
-
-# Navigate into the project directory
-cd richland_inventory
-
-```
-### 2. Create and Activate a Virtual Environment
-Using a virtual environment is highly recommended to isolate project dependencies.
-
-```bash
-
-# Step 1: Create the virtual environment
-python -m venv venv
-```
-
-```bash
-# Step 2: Activate the virtual environment using PowerShell
-.\venv\Scripts\activate
-
-```
-```bash
-#IF there is an error activating the virtual environment, input this
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned
-```
-### 3. Install Required Packages
-
-```bash
-pip install -r requirements.txt
-
-```
-### 4. Set Up the MySQL Database
-
-```bash
-# Create a new database. We recommend using utf8mb4 for full Unicode support.
-CREATE DATABASE richland_inventory_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-#Create a new user and grant it privileges on the new database. Replace 'your_password' with a secure password.
-CREATE USER 'your_db_user'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON richland_inventory_db.* TO 'your_db_user'@'localhost';
-FLUSH PRIVILEGES;
-
-```
-### 5. Creating a .env file.
-In the same directory as your manage.py file (the root of your project), create a new file named .env.
-```bash
-# .env
-# SECURITY WARNING: keep the secret key used in production secret!
-# SECURITY WARNING: Generate your own secret key for production
-SECRET_KEY='django-insecure-your-own-secret-key'
-
-# Set to False in production!
+```ini
+# Security
+SECRET_KEY=your-secret-key-here
 DEBUG=True
 
-# In production, set this to your domain names e.g., 'www.yourdomain.com,yourdomain.com'
-ALLOWED_HOSTS='127.0.0.1,localhost'
+# Database Configuration (Local/Docker)
+DB_NAME=richland_inventory_db
+DB_USER=user
+DB_PASSWORD=password
+DB_HOST=db
+DB_PORT=3306
 
-# -- Database Configuration --
-DB_NAME='richland_inventory_db'
-DB_USER='your_mysql_username'
-DB_PASSWORD='your_mysql_password'
-DB_HOST='localhost'
-DB_PORT='3306'
-
+# Allowed Hosts (Comma separated)
+ALLOWED_HOSTS=127.0.0.1,localhost
 ```
 
-### 6. Apply Database Migrations
-   
- ```bash
-python manage.py makemigrations
+*Note: For production (Render), these variables are managed via the Render Dashboard environment settings.*
 
-python manage.py migrate
+---
 
-### 7. Create an Administrator Account
+## Running with Docker (Recommended)
 
- ```bash
-python manage.py createsuperuser
+Docker is the easiest way to get the system running with all dependencies and the MySQL database correctly configured.
+
+### 1. Build and Start
+This command builds the images and starts the web and database services. It also automatically runs migrations and collects static files.
+```bash
+docker-compose up --build
 ```
 
-### 8. Start the Django Web Server
+### 2. Initial Setup
+Run these once the containers are healthy:
+```bash
+# Create an admin account
+docker-compose exec web python richland_inventory/manage.py createsuperuser
 
- ```bash
-python manage.py runserver
-
-```
-### Testing the Application
- ```bash
-python manage.py test inventory
-```
-
- ```bash
-python manage.py flush
+# (Optional) Seed the database with sample data
+docker-compose exec web python richland_inventory/manage.py seed_data
 ```
 
- ```bash
-python manage.py seed_data
-```
-## Running with Docker (Milestone 2)
+### 3. Access the System
+*   **Dashboard:** [http://localhost:8000](http://localhost:8000)
+*   **Admin Panel:** [http://localhost:8000/admin](http://localhost:8000/admin)
+*   **API Docs:** [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
 
-Utilizing Docker ensures environment parity and simplifies the setup of the MySQL database and Python dependencies.
+---
 
-1.  **Build and Start the Containers**
-    This command builds the Django image and starts both the web and database services.
+## Local Development (Manual Setup)
+
+### Prerequisites
+*   Python 3.11+
+*   MySQL Server (e.g., MySQL Community Server or MariaDB)
+
+### Installation
+1.  **Clone & Navigate**
     ```bash
-    docker-compose up --build
+    git clone <repository-url>
+    cd Rich-Land-IOS
+    ```
+2.  **Virtual Environment**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # Linux/macOS
+    # OR
+    .\venv\Scripts\activate   # Windows
+    ```
+3.  **Install Dependencies**
+    ```bash
+    pip install -r richland_inventory/requirements.txt
+    ```
+4.  **Database & Static Files**
+    ```bash
+    cd richland_inventory
+    python manage.py migrate
+    python manage.py collectstatic --no-input
+    ```
+5.  **Run Server**
+    ```bash
+    python manage.py runserver
     ```
 
-2.  **Initialize the Database**
-    Once the containers are running, execute the migrations:
-    ```bash
-    docker-compose exec web python richland_inventory/manage.py migrate
-        ```
+---
 
-3.  **Seed the Database (Optional)**
-    Populate the system with comprehensive initial test data:
-    ```bash
-    docker-compose exec web python richland_inventory/manage.py seed_data
-    ```
-
-4.  **Delete Database**
-    To completely remove the database and start fresh (this wipes the persistent volume):
-    ```bash
-    docker-compose down -v
-    ```
-
-5.  **Restart Service (If you pull latest commit)**
-    Restart the services to pick up local code changes:
-    ```bash
-    docker-compose up
-    ```
-(NOTED: You only need to run migrations when your database schema is out of sync with your Django models.)
+## Static Files Troubleshooting (Windows/Docker)
+If the Admin CSS/JS fails to load on Windows while using Docker:
+1.  Run `docker-compose down -v` to clear volumes.
+2.  Manually delete the `richland_inventory/staticfiles` folder on your host machine.
+3.  Ensure `DEBUG=True` is set in your `.env`.
+4.  Rebuild: `docker-compose up --build`.
