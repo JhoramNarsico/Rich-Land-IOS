@@ -1,28 +1,33 @@
 services:
   db:
     image: mysql:8.0
+    platform: linux/amd64
     restart: always
     environment:
-      MYSQL_DATABASE: richland_inventory_db
-      MYSQL_USER: user
-      MYSQL_PASSWORD: password
-      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ${DB_NAME:-richland_inventory_db}
+      MYSQL_USER: ${DB_USER:-user}
+      MYSQL_PASSWORD: ${DB_PASSWORD:-password}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-rootpassword}
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "3307:3306"
+      - "${DB_PORT_EXTERNAL:-3307}:3306"
 
   web:
     build: .
-    command: python richland_inventory/manage.py runserver 0.0.0.0:8000
+    command: >
+      sh -c "python richland_inventory/manage.py migrate &&
+             python richland_inventory/manage.py collectstatic --no-input &&
+             python richland_inventory/manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
     ports:
-      - "8000:8000"
+      - "${WEB_PORT:-8000}:8000"
     environment:
-      - DB_NAME=richland_inventory_db
-      - DB_USER=user
-      - DB_PASSWORD=password
+      - DEBUG=True
+      - DB_NAME=${DB_NAME:-richland_inventory_db}
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
       - DB_HOST=db
       - DB_PORT=3306
     depends_on:

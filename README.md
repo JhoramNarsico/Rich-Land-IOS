@@ -1,116 +1,117 @@
-# XJHS Prefect & Registrar Information System (XJHS-PIS)
+# Richland Inventory System
 
-This project is a modern web application built to replace the legacy Windows XP and MS Access-based system used by the Xavier University - Ateneo de Cagayan Junior High School's Prefect of Students Office. 
-
-This "clean-room" reconstruction was developed using Python, Django, and MySQL. The system unifies the formerly separate **Prefect Information System (PIS)** and **Registrar Information System (RIS)** into a single, cohesive application.
+A comprehensive inventory management application built with Django and MySQL, designed for robust tracking, audit logging, and POS functionality.
 
 ## Core Features
 
-*   **Unified System:** Combines RIS (Enrolment, Sections, Subjects, Teachers) and PIS (Discipline, Conduct, Absences) into one database.
-*   **Legacy UI/UX Replication:** The interface is designed to be a 1-to-1 visual and functional match of the original 2002 software, built with modern HTML5 and Bootstrap 5.
-*   **Strictly Offline & Local:** The system is hardcoded to run on `127.0.0.1`, ensuring student data privacy by preventing any network or internet access.
-*   **Database Migration:** Includes a robust Excel (`.xlsx`) import tool to allow for a "clean slate" data migration from legacy student lists.
-*   **Relational Data Management:** Full CRUD (Create, Read, Update, Delete) functionality for managing students, teachers, sections, subjects, and their relationships.
+*   **Product & Stock Management:** Detailed tracking of products, categories, and real-time stock levels.
+*   **Audit Logging:** Automatic tracking of all product edits and stock movements via `django-simple-history`.
+*   **POS System:** Integrated Point of Sale for managing sales, customers, and payments.
+*   **Reporting:** Generate PDF reports for inventory snapshots, sales history, and supplier deliveries.
+*   **REST API:** Fully documented API using Swagger/OpenAPI for integration.
 
 ## Tech Stack
 
-*   **Backend:** Python 3.10+, Django
--   **Language:** Python 3.12 (Required)
-*   **Database:** MySQL 8.0
-*   **Frontend:** HTML5, CSS3, Bootstrap 5, Vanilla JavaScript
+*   **Backend:** Python 3.11+, Django 5.2
+*   **Database:** MySQL 8.0 (Local/Docker) / PostgreSQL (Production)
+*   **Frontend:** Bootstrap 5, Vanilla JavaScript
+*   **DevOps:** Docker, WhiteNoise (Static Files), Render (Deployment)
 
 ---
 
-## Getting Started
+## Environment Configuration
 
-Follow these instructions to set up and run the project on your local machine for development and testing purposes.
+The application uses `python-decouple` to manage configurations. You must create a `.env` file in the `richland_inventory/` directory.
+
+### `.env` Setup
+Create `richland_inventory/.env` and add the following:
+
+```ini
+# Security
+SECRET_KEY=your-secret-key-here
+DEBUG=True
+
+# Database Configuration (Local/Docker)
+DB_NAME=richland_inventory_db
+DB_USER=user
+DB_PASSWORD=password
+DB_HOST=db
+DB_PORT=3306
+
+# Allowed Hosts (Comma separated)
+ALLOWED_HOSTS=127.0.0.1,localhost
+```
+
+*Note: For production (Render), these variables are managed via the Render Dashboard environment settings.*
+
+---
+
+## Running with Docker (Recommended)
+
+Docker is the easiest way to get the system running with all dependencies and the MySQL database correctly configured.
+
+### 1. Build and Start
+This command builds the images and starts the web and database services. It also automatically runs migrations and collects static files.
+```bash
+docker-compose up --build
+```
+
+### 2. Initial Setup
+Run these once the containers are healthy:
+```bash
+# Create an admin account
+docker-compose exec web python richland_inventory/manage.py createsuperuser
+
+# (Optional) Seed the database with sample data
+docker-compose exec web python richland_inventory/manage.py seed_data
+```
+
+### 3. Access the System
+*   **Dashboard:** [http://localhost:8000](http://localhost:8000)
+*   **Admin Panel:** [http://localhost:8000/admin](http://localhost:8000/admin)
+*   **API Docs:** [http://localhost:8000/api/docs](http://localhost:8000/api/docs)
+
+---
+
+## Local Development (Manual Setup)
 
 ### Prerequisites
-
-You must have the following software installed on your machine:
-*   [Python 3.12+](https://www.python.org/downloads/)
-*   [Git](https://git-scm.com/downloads/)
-*   [XAMPP](https://www.apachefriends.org/index.html) (or another local MySQL server environment)
+*   Python 3.11+
+*   MySQL Server (e.g., MySQL Community Server or MariaDB)
 
 ### Installation
-
-1.  **Clone the Repository**
+1.  **Clone & Navigate**
     ```bash
-    git clone https://github.com/your-username/your-repo-name.git
-    cd your-repo-name
+    git clone <repository-url>
+    cd Rich-Land-IOS
     ```
-
-2.  **Create and Activate a Virtual Environment**
+2.  **Virtual Environment**
     ```bash
-    # Create the virtual environment folder
     python -m venv venv
-
-    # Activate it (for Windows)
-    venv\Scripts\activate
+    source venv/bin/activate  # Linux/macOS
+    # OR
+    .\venv\Scripts\activate   # Windows
     ```
-
-3.  **Install Project Dependencies**
-    This command reads the `requirements.txt` file and installs Django and other necessary backend dependencies.
+3.  **Install Dependencies**
     ```bash
-    pip install -r requirements.txt
+    pip install -r richland_inventory/requirements.txt
     ```
-
-4.  **Set Up the Local MySQL Database**
-    > **Important:** This application requires a local MySQL database to run.
-
-    a. Open your XAMPP Control Panel and start the **MySQL** module.
-    b. Open your web browser and navigate to `http://localhost/phpmyadmin/`.
-    c. Create a new, empty database with the exact name: `xjhs_pis_db`
-
-5.  **Configure Database Connection**
-    a. Open the `xjhs_pis/settings.py` file.
-    b. Scroll down to the `DATABASES` section.
-    c. **Update the `PASSWORD` field** to match your local MySQL root password (for default XAMPP, this is usually blank: `''`).
-
-6.  **Build the Database Tables**
-    These commands will push the application's data structure into your new MySQL database.
+4.  **Database & Static Files**
     ```bash
-    python manage.py makemigrations
+    cd richland_inventory
     python manage.py migrate
+    python manage.py collectstatic --no-input
     ```
-
-7.  **Create Your Admin Account**
-    This account is needed to get past the login screen.
+5.  **Run Server**
     ```bash
-    python manage.py createsuperuser
+    python manage.py runserver
     ```
-    Follow the prompts to create your username and password.
 
 ---
 
-## Running the Application
-
-You can run the system in two ways:
-
-#### 1. Running the Local Server
-This command starts the Django development server for local access.
-
----
-## Running with Docker
-
-Utilizing Docker ensures environment parity and simplifies the setup of the MySQL database and Python dependencies.
-
-1.  **Build and Start the Containers**  
-    This command builds the Django image and starts both the web and database services.
-    ```bash
-    docker-compose up --build
-    ```
-
-2.  **Create Your Admin Account**  
-    Once the containers are running, execute this command in a separate terminal to create your login:
-    ```bash
-    docker-compose exec web python manage.py createsuperuser
-    ```
-3.  **Seeding Data**  
-    Once the containers are running, execute this command in a separate terminal to create your login:
-    ```bash
-    docker-compose exec web python manage.py seed_data
-    ```
-
-4.  **Access the System**  
-    Open your browser and navigate to `http://localhost:8000`.
+## Static Files Troubleshooting (Windows/Docker)
+If the Admin CSS/JS fails to load on Windows while using Docker:
+1.  Run `docker-compose down -v` to clear volumes.
+2.  Manually delete the `richland_inventory/staticfiles` folder on your host machine.
+3.  Ensure `DEBUG=True` is set in your `.env`.
+4.  Rebuild: `docker-compose up --build`.
