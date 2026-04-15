@@ -99,31 +99,22 @@ Utilizing Docker simplifies the setup of the MySQL database and Python dependenc
     ```bash
     docker-compose up --build
     ```
-
+2. **Migrations**  
+    Apply migrations.
+    ```bash
+    docker-compose exec web python richland_inventory/manage.py migrate
+    ```
 2.  **Create Your Admin Account**  
     ```bash
-    docker-compose exec web python manage.py createsuperuser
+    docker-compose exec web python richland_inventory/manage.py createsuperuser
     ```
 
 3.  **Seeding Data**  
     ```bash
-    docker-compose exec web python manage.py seed_data
+    docker-compose exec web python richland_inventory/manage.py seed_data
     ```
 
 4.  **Access the System**  
     Open your browser and navigate to `http://localhost:8000`.
 
----
 
-## Maintenance
-
-### Audit Log Rotation
-To prevent the history tables from growing too large, use the built-in rotation command. This deletes product edit history older than a specific number of days (default is 365).
-
-```bash
-# Keep the last 90 days of history
-python manage.py rotate_audit_log --days 90
-
-# Running via Docker
-docker-compose exec web python manage.py rotate_audit_log --days 90
-```
