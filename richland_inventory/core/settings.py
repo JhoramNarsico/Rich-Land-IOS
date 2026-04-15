@@ -106,13 +106,16 @@ USE_I18N = True
 USE_TZ = True
 
 # --- STATIC FILES CONFIGURATION ---
-STATIC_URL = 'static/'
+STATIC_URL = '/static/'
 STATICFILES_DIRS = [os.path.join(BASE_DIR, 'static')]
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 
 # Use WhiteNoise for storage if not in Debug mode (Production)
 if not DEBUG:
     STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# Add this to ensure WhiteNoise handles files even when DEBUG is True (fixes Windows/Docker sync issues)
+WHITENOISE_USE_FINDERS = True
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
