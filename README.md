@@ -1,6 +1,6 @@
-# Richland Inventory System
+# Richland IOS
 
-A comprehensive inventory management application built with Django and MySQL, designed for robust tracking, audit logging, and POS functionality.
+A comprehensive integrations operations system built with Django and MySQL, designed for robust tracking, audit logging, and POS functionality.
 
 ## Core Features
 
