@@ -5,32 +5,32 @@
 
 {% block content %}
     <!-- 1. DASHBOARD HEADER -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <header class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="fw-bold text-dark mb-0">Dashboard Overview</h2>
+            <h1 class="h2 fw-bold text-dark mb-0" id="dashboard-heading">Dashboard Overview</h1>
             <p class="text-muted small mb-0">Real-time insights and inventory status</p>
         </div>
         <div class="text-end">
-            <span class="badge bg-light text-dark border px-3 py-2 fw-normal shadow-sm">
-                <i class="far fa-calendar-alt me-2"></i> {% now "F d, Y" %}
+            <span class="badge bg-light text-dark border px-3 py-2 fw-normal shadow-sm" aria-label="Current Date">
+                <i class="far fa-calendar-alt me-2" aria-hidden="true"></i> {% now "F d, Y" %}
             </span>
         </div>
-    </div>
+    </header>
 
     <!-- 2. COMPACT ALERTS SECTION -->
     {% if out_of_stock_products or low_stock_products %}
-    <div class="row g-3 mb-4">
+    <section class="row g-3 mb-4" aria-label="Inventory Alerts">
         
         <!-- A. OUT OF STOCK ALERT (RED) -->
         {% if out_of_stock_products %}
         <div class="col-md-{% if low_stock_products %}6{% else %}12{% endif %}">
-            <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100">
-                <div class="fs-3 me-3 text-danger"><i class="fas fa-times-circle"></i></div>
+            <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100" role="alert">
+                <div class="fs-3 me-3 text-danger"><i class="fas fa-times-circle" aria-hidden="true"></i></div>
                 <div>
                     <div class="fw-bold text-danger">Out of Stock Alert</div>
                     <div class="small text-dark">
                         <strong>{{ out_of_stock_count }}</strong> item(s) have hit 0 quantity.
-                        <a href="{% url 'inventory:product_list' %}?stock_status=out_of_stock" class="text-danger fw-bold text-decoration-underline ms-1">View List</a>.
+                        <a href="{% url 'inventory:product_list' %}?stock_status=out_of_stock" class="text-danger fw-bold text-decoration-underline ms-1" aria-label="View out of stock list">View List</a>.
                     </div>
                 </div>
             </div>
@@ -40,24 +40,24 @@
         <!-- B. LOW STOCK WARNING (AMBER) -->
         {% if low_stock_products %}
         <div class="col-md-{% if out_of_stock_products %}6{% else %}12{% endif %}">
-            <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100">
-                <div class="fs-3 me-3 text-warning"><i class="fas fa-exclamation-triangle"></i></div>
+            <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100" role="alert">
+                <div class="fs-3 me-3 text-warning"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i></div>
                 <div>
                     <div class="fw-bold text-warning-emphasis" style="color: #d35400 !important;">Low Stock Warning</div>
                     <div class="small text-dark">
                         <strong>{{ low_stock_count }}</strong> item(s) are running low.
-                        <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="fw-bold text-decoration-underline ms-1" style="color: #d35400 !important;">View List</a>.
+                        <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="fw-bold text-decoration-underline ms-1" style="color: #d35400 !important;" aria-label="View low stock list">View List</a>.
                     </div>
                 </div>
             </div>
         </div>
         {% endif %}
         
-    </div>
+    </section>
     {% endif %}
 
     <!-- 3. KPI METRICS -->
-    <div class="row g-4 mb-4">
+    <section class="row g-4 mb-4" aria-label="Key Performance Indicators">
         
         <!-- Card 1: Total Products -->
         <div class="col-md-4">
@@ -65,10 +65,10 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-uppercase text-muted fw-bold small mb-1">Total Products</p>
-                            <h3 class="fw-bold text-dark mb-0">{{ total_products|intcomma }}</h3>
+                            <h2 class="h6 text-uppercase text-muted fw-bold mb-1">Total Products</h2>
+                            <p class="h3 fw-bold text-dark mb-0">{{ total_products|intcomma }}</p>
                         </div>
-                        <div class="bg-light rounded p-3 text-secondary">
+                        <div class="bg-light rounded p-3 text-secondary" aria-hidden="true">
                             <i class="fas fa-cubes fa-lg"></i>
                         </div>
                     </div>
@@ -90,10 +90,10 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-uppercase text-muted fw-bold small mb-1">Inventory Value</p>
-                            <h3 class="fw-bold text-dark mb-0">₱{{ total_stock_value|floatformat:2|intcomma }}</h3>
+                            <h2 class="h6 text-uppercase text-muted fw-bold mb-1">Inventory Value</h2>
+                            <p class="h3 fw-bold text-dark mb-0">₱{{ total_stock_value|floatformat:2|intcomma }}</p>
                         </div>
-                        <div class="bg-light rounded p-3 text-primary">
+                        <div class="bg-light rounded p-3 text-primary" aria-hidden="true">
                             <i class="fas fa-wallet fa-lg"></i>
                         </div>
                     </div>
@@ -110,26 +110,26 @@
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
                         <div>
-                            <p class="text-uppercase text-muted fw-bold small mb-1">30-Day Revenue</p>
-                            <h3 class="fw-bold text-dark mb-0">₱{{ monthly_revenue|floatformat:2|intcomma }}</h3>
+                            <h2 class="h6 text-uppercase text-muted fw-bold mb-1">30-Day Revenue</h2>
+                            <p class="h3 fw-bold text-dark mb-0">₱{{ monthly_revenue|floatformat:2|intcomma }}</p>
                         </div>
-                        <div class="bg-light rounded p-3 text-success">
+                        <div class="bg-light rounded p-3 text-success" aria-hidden="true">
                             <i class="fas fa-chart-line fa-lg"></i>
                         </div>
                     </div>
                     
                     <div class="mt-3 d-flex align-items-center">
                         {% if revenue_trend > 0 %}
-                            <span class="text-success fw-bold small me-2">
-                                <i class="fas fa-arrow-up"></i> {{ revenue_trend|floatformat:1 }}%
+                            <span class="text-success fw-bold small me-2" aria-label="Revenue increased by {{ revenue_trend|floatformat:1 }} percent">
+                                <i class="fas fa-arrow-up" aria-hidden="true"></i> {{ revenue_trend|floatformat:1 }}%
                             </span>
                         {% elif revenue_trend < 0 %}
-                            <span class="text-danger fw-bold small me-2">
-                                <i class="fas fa-arrow-down"></i> {{ revenue_trend|floatformat:1 }}%
+                            <span class="text-danger fw-bold small me-2" aria-label="Revenue decreased by {{ revenue_trend|floatformat:1 }} percent">
+                                <i class="fas fa-arrow-down" aria-hidden="true"></i> {{ revenue_trend|floatformat:1 }}%
                             </span>
                         {% else %}
-                            <span class="text-muted fw-bold small me-2">
-                                <i class="fas fa-minus"></i> 0%
+                            <span class="text-muted fw-bold small me-2" aria-label="Revenue unchanged">
+                                <i class="fas fa-minus" aria-hidden="true"></i> 0%
                             </span>
                         {% endif %}
                         <span class="text-muted small">vs previous 30 days</span>
@@ -137,44 +137,44 @@
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
     <!-- 4. CHARTS & TABLES -->
     <div class="row">
-        <!-- Sales Chart (UPDATED) -->
-        <div class="col-lg-8 mb-4">
+        <!-- Sales Chart -->
+        <section class="col-lg-8 mb-4" aria-labelledby="chart-heading">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white py-3 border-bottom-0 d-flex justify-content-between align-items-center">
-                    <h5 class="m-0 fw-bold text-dark">Sales Performance (Last 30 Days)</h5>
+                    <h3 class="h5 m-0 fw-bold text-dark" id="chart-heading">Sales Performance (Last 30 Days)</h3>
                 </div>
                 <div class="card-body">
                     <div style="height: 300px;">
-                        <canvas id="salesChart"></canvas>
+                        <canvas id="salesChart" role="img" aria-label="Line chart demonstrating sales trends over the last 30 days"></canvas>
                     </div>
                 </div>
             </div>
-        </div>
+        </section>
         
         <!-- Recent Products List -->
-        <div class="col-lg-4 mb-4">
+        <section class="col-lg-4 mb-4" aria-labelledby="recent-items-heading">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white py-3 border-bottom-0">
-                    <h5 class="m-0 fw-bold text-dark">Recently Added</h5>
+                    <h3 class="h5 m-0 fw-bold text-dark" id="recent-items-heading">Recently Added</h3>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0 align-middle">
+                        <table class="table table-hover mb-0 align-middle" aria-label="List of recently added inventory products">
                             <thead class="table-light">
                                 <tr>
-                                    <th class="ps-4">Product</th>
-                                    <th class="text-end pe-4">Qty</th>
+                                    <th scope="col" class="ps-4">Product</th>
+                                    <th scope="col" class="text-end pe-4">Qty</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {% for product in recent_products %}
                                 <tr>
                                     <td class="ps-4">
-                                        <a href="{{ product.get_absolute_url }}" class="fw-semibold text-dark d-block text-truncate text-decoration-none" style="max-width: 150px;">
+                                        <a href="{{ product.get_absolute_url }}" class="fw-semibold text-dark d-block text-truncate text-decoration-none" style="max-width: 150px;" aria-label="View details for {{ product.name }}">
                                             {{ product.name }}
                                         </a>
                                         <small class="text-muted font-monospace">{{ product.sku }}</small>
@@ -191,19 +191,18 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white text-center border-top-0 pb-3">
-                    <a href="{% url 'inventory:product_list' %}" class="btn btn-sm btn-outline-secondary w-100">View All Products</a>
+                    <a href="{% url 'inventory:product_list' %}" class="btn btn-sm btn-outline-secondary w-100" aria-label="Navigate to view all products">View All Products</a>
                 </div>
             </div>
-        </div>
+        </section>
     </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-let salesChartInstance = null; // Store the chart instance globally
+let salesChartInstance = null; 
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Load default view (Day) on page load
     updateChart('day');
 });
 
@@ -211,7 +210,6 @@ function updateChart(period, btnElement) {
     const ctx = document.getElementById('salesChart');
     if (!ctx) return;
 
-    // 1. Update Button Styling
     if (btnElement) {
         document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.remove('active', 'btn-secondary'));
         document.querySelectorAll('.btn-group .btn').forEach(b => b.classList.add('btn-outline-secondary'));
@@ -220,7 +218,6 @@ function updateChart(period, btnElement) {
         btnElement.classList.add('active', 'btn-secondary');
     }
 
-    // 2. Fetch Data
     const baseUrl = "{% url 'inventory-api:sales-chart-data' %}";
     const url = `${baseUrl}?period=${period}`;
 
@@ -234,22 +231,20 @@ function updateChart(period, btnElement) {
                 salesChartInstance.destroy();
             }
 
-            // --- COLOR CONFIGURATION ---
-            const colorUp = '#27a562';      // Green (Success)
-            const colorDown = '#c0392b';    // Red (Danger)
-            const colorDefault = '#2799a5'; // Brand Teal
+            const colorUp = '#27a562';      
+            const colorDown = '#c0392b';    
+            const colorDefault = '#2799a5'; 
 
-            // 3. Create New Chart
             salesChartInstance = new Chart(ctx.getContext('2d'), {
                 type: 'line',
                 data: {
                     labels: data.labels,
-                    datasets: [
+                    datasets:[
                         {
                             label: 'Cash Sales',
                             data: data.sales_data,
                             backgroundColor: 'rgba(39, 153, 165, 0.1)',
-                            borderColor: '#2799a5', // Teal
+                            borderColor: '#2799a5', 
                             borderWidth: 2,
                             pointRadius: 3,
                             pointHoverRadius: 5,
@@ -260,7 +255,7 @@ function updateChart(period, btnElement) {
                             label: 'Charges (Credit)',
                             data: data.charges_data,
                             backgroundColor: 'rgba(220, 53, 69, 0.1)',
-                            borderColor: '#dc3545', // Danger Red
+                            borderColor: '#dc3545', 
                             borderWidth: 2,
                             pointRadius: 3,
                             pointHoverRadius: 5,
