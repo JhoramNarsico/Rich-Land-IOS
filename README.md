@@ -73,6 +73,22 @@ docker-compose exec web python richland_inventory/manage.py seed_data
 
 ---
 
+## Testing with Docker
+
+The system includes automated integration tests that verify the HTTP response and browser rendering using Selenium.
+
+### Run Integration Tests
+This command starts the database, web app, and a standalone Chrome container to run the test suite:
+```bash
+docker-compose run --rm tests
+```
+
+### What's Tested:
+*   **HTTP Layer:** Verifies that the homepage and login pages return a `200 OK` status.
+*   **Browser Layer (Selenium):** Uses a real Chrome instance to verify that the UI components (like login forms) are rendered correctly.
+
+---
+
 ## Local Development (Manual Setup)
 
 ### Prerequisites

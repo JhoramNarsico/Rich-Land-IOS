@@ -19,7 +19,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-dev-key-change-this-i
 # Render: Set DEBUG=False in Environment Variables
 DEBUG = config('DEBUG', default=False, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost', cast=Csv())
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='127.0.0.1,localhost,web', cast=Csv())
 
 # Fix for Render's Health Check and Domain (Only applies if DEBUG is False)
 if not DEBUG:

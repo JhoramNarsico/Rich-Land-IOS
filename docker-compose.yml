@@ -33,5 +33,33 @@ services:
     depends_on:
       - db
 
+  selenium:
+    image: selenium/standalone-chrome:latest
+    platform: linux/amd64
+    shm_size: 2gb
+    ports:
+      - "4444:4444"
+      - "7900:7900"
+
+  tests:
+    build: .
+    volumes:
+      - .:/app
+    environment:
+      - DEBUG=True
+      - DB_NAME=${DB_NAME:-richland_inventory_db}
+      - DB_USER=${DB_USER:-user}
+      - DB_PASSWORD=${DB_PASSWORD:-password}
+      - DB_HOST=db
+      - DB_PORT=3306
+      - SELENIUM_URL=http://selenium:4444/wd/hub
+      - WEB_URL=http://web:8000
+    depends_on:
+      - db
+      - web
+      - selenium
+    command: >
+      sh -c "pytest richland_inventory/inventory/tests_integration.py"
+
 volumes:
   mysql_data:

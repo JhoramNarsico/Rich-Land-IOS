@@ -1,12 +1,35 @@
-# Virtual Environment
-venv/
-
-# Environment variables
-.env
-
-# Python cache
+# Python Cache & Artifacts
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 
-# Database file
-db.sqlite3
+# Environment Variables
+.env
+richland_inventory/.env
+
+# Virtual Environment
+venv/
+env/
+.venv/
+.env/
+
+# Django Generated Files
+richland_inventory/staticfiles/
+richland_inventory/media/
+richland_inventory/db.sqlite3
+richland_inventory/db.sqlite3-journal
+
+# Logs
+*.log
+
+# IDE & OS
+.vscode/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build Artifacts
+build/
+dist/
+*.egg-info/
