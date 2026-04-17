@@ -1,8 +1,3 @@
-"""
-Core application views.
-Handles the main dashboard display, metric aggregations, and caching logic.
-"""
-
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, F
