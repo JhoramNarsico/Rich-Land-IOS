@@ -80,7 +80,7 @@ The system includes automated integration tests that verify the HTTP response an
 ### Run Integration Tests
 This command starts the database, web app, and a standalone Chrome container to run the test suite:
 ```bash
-docker-compose run --rm tests
+docker-compose run --rm tests pytest -v
 ```
 
 ### What's Tested:

@@ -85,16 +85,16 @@ class InventoryViewTests(TestCase):
         self.delete_url = reverse('inventory:product_delete', kwargs={'slug': self.product.slug})
 
     def test_delete_view_permission_denied_for_normal_user(self):
-        """Test that a normal user is redirected and cannot delete a product."""
+        """Test that a normal user is denied access (403) and cannot delete a product."""
         self.client.login(username='user', password='password')
         response = self.client.get(self.delete_url)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
         
     def test_delete_view_permission_denied_for_manager_user(self):
-        """Test that a non-superuser manager is also redirected."""
+        """Test that a non-superuser manager is also denied access (403)."""
         self.client.login(username='manager', password='password')
         response = self.client.get(self.delete_url)
-        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.status_code, 403)
 
     def test_delete_view_accessible_by_superuser(self):
         """Test that a superuser can access the delete confirmation page."""
