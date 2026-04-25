@@ -3,10 +3,20 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="description" content="Rich Land Integrated Operations System - Inventory and POS Dashboard">
+    <meta name="author" content="Rich Land Auto Supply">
+    <meta name="theme-color" content="#2c3e50">
     <title>{% block title %}Rich Land Inventory{% endblock %}</title>
     
+    <!-- Open Graph / Social Media Meta Tags -->
+    <meta property="og:title" content="Rich Land IOS Dashboard">
+    <meta property="og:description" content="Integrated operations, inventory tracking, and POS management.">
+    <meta property="og:type" content="website">
+
+    <!-- Favicon placeholder (Best practice) -->
+    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -172,103 +182,103 @@
     <header class="sticky-top">
         <nav class="navbar navbar-expand-lg navbar-dark bg-dark" aria-label="Main Navigation">
             <div class="container-fluid px-4">
-                <a class="navbar-brand me-4" href="{% url 'home' %}" aria-label="Rich Land Home">
-                    <img src="{% static 'images/logo.png' %}" alt="Rich Land Logo" height="40">
+                <a class="navbar-brand me-4" href="{% url 'home' %}" aria-label="Navigate to Home Dashboard">
+                    <img src="{% static 'images/logo.png' %}" alt="Rich Land Auto Supply Logo" height="40">
                 </a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle primary navigation menu">
                     <span class="navbar-toggler-icon"></span>
                 </button>
                 <div class="collapse navbar-collapse" id="navbarNav">
-                    <ul class="navbar-nav me-auto">
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'home' %}"><i class="fas fa-tachometer-alt me-1" aria-hidden="true"></i> Dashboard</a>
+                    <ul class="navbar-nav me-auto" role="menubar">
+                        <li class="nav-item" role="none">
+                            <a class="nav-link" href="{% url 'home' %}" role="menuitem"><i class="fas fa-tachometer-alt me-1" aria-hidden="true"></i> Dashboard</a>
                         </li>
                         
                         {% if perms.inventory.view_product %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-boxes me-1" aria-hidden="true"></i> Inventory</a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'inventory:product_list' %}">Product List</a></li>
+                        <li class="nav-item dropdown" role="none">
+                            <a class="nav-link dropdown-toggle" href="#" role="menuitem" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-boxes me-1" aria-hidden="true"></i> Inventory</a>
+                            <ul class="dropdown-menu" role="menu">
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:product_list' %}" role="menuitem">Product List</a></li>
                                 {% if perms.inventory.view_stocktransaction %}
-                                <li><a class="dropdown-item" href="{% url 'inventory:transaction_list' %}">Transaction Logs</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:transaction_list' %}" role="menuitem">Transaction Logs</a></li>
                                 {% endif %}
                                 {% if perms.inventory.can_view_history %}
-                                <li><a class="dropdown-item" href="{% url 'inventory:product_history_list' %}">Audit History</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:product_history_list' %}" role="menuitem">Audit History</a></li>
                                 {% endif %}
                             </ul>
                         </li>
                         {% endif %}
                         
                         {% if perms.inventory.view_purchaseorder or perms.inventory.view_supplier %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-truck me-1" aria-hidden="true"></i> Procurement</a>
-                            <ul class="dropdown-menu">
+                        <li class="nav-item dropdown" role="none">
+                            <a class="nav-link dropdown-toggle" href="#" role="menuitem" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-truck me-1" aria-hidden="true"></i> Procurement</a>
+                            <ul class="dropdown-menu" role="menu">
                                 {% if perms.inventory.view_purchaseorder %}
-                                <li><a class="dropdown-item" href="{% url 'inventory:purchaseorder_list' %}">Purchase Orders</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:purchaseorder_list' %}" role="menuitem">Purchase Orders</a></li>
                                 {% endif %}
                                 {% if perms.inventory.view_supplier %}
-                                <li><a class="dropdown-item" href="{% url 'inventory:supplier_list' %}">Suppliers</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:supplier_list' %}" role="menuitem">Suppliers</a></li>
                                 {% endif %}
                             </ul>
                         </li>
                         {% endif %}
                         
                         {% if perms.inventory.view_customer %}
-                        <li class="nav-item">
-                            <a class="nav-link" href="{% url 'inventory:customer_list' %}">
+                        <li class="nav-item" role="none">
+                            <a class="nav-link" href="{% url 'inventory:customer_list' %}" role="menuitem">
                                 <i class="fas fa-users me-1" aria-hidden="true"></i> Customers
                             </a>
                         </li>
                         {% endif %}
                         
                         {% if perms.inventory.can_view_reports or perms.inventory.view_expense %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-chart-pie me-1" aria-hidden="true"></i> Insights</a>
-                            <ul class="dropdown-menu">
+                        <li class="nav-item dropdown" role="none">
+                            <a class="nav-link dropdown-toggle" href="#" role="menuitem" data-bs-toggle="dropdown" aria-expanded="false"><i class="fas fa-chart-pie me-1" aria-hidden="true"></i> Insights</a>
+                            <ul class="dropdown-menu" role="menu">
                                 {% if perms.inventory.can_view_reports %}
-                                <li><a class="dropdown-item" href="{% url 'inventory:analytics' %}">Analytics</a></li>
-                                <li><a class="dropdown-item" href="{% url 'inventory:reporting' %}">Reports</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:analytics' %}" role="menuitem">Analytics</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:reporting' %}" role="menuitem">Reports</a></li>
                                 {% endif %}
                                 {% if perms.inventory.view_expense %}
-                                <li><a class="dropdown-item" href="{% url 'inventory:expense_list' %}">Expenses</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:expense_list' %}" role="menuitem">Expenses</a></li>
                                 {% endif %}
                             </ul>
                         </li>
                         {% endif %}
                         
                         {% if perms.inventory.add_possale or perms.inventory.view_possale %}
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle text-warning fw-bold" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <li class="nav-item dropdown" role="none">
+                            <a class="nav-link dropdown-toggle text-warning fw-bold" href="#" role="menuitem" data-bs-toggle="dropdown" aria-expanded="false">
                                 <i class="fas fa-cash-register me-1" aria-hidden="true"></i> POS
                             </a>
-                            <ul class="dropdown-menu">
-                                <li><a class="dropdown-item" href="{% url 'inventory:pos_dashboard' %}">Open Terminal</a></li>
-                                <li><a class="dropdown-item" href="{% url 'inventory:pos_history' %}">Sales History</a></li>
+                            <ul class="dropdown-menu" role="menu">
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:pos_dashboard' %}" role="menuitem">Open Terminal</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:pos_history' %}" role="menuitem">Sales History</a></li>
                             </ul>
                         </li>
                         {% endif %}
                     </ul>
-                    <ul class="navbar-nav">
+                    <ul class="navbar-nav" role="menubar">
                         {% if user.is_authenticated %}
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <li class="nav-item dropdown" role="none">
+                                <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="menuitem" data-bs-toggle="dropdown" aria-expanded="false">
                                     <i class="fas fa-user-circle me-1" aria-hidden="true"></i> {{ user.username }}
                                 </a>
-                                <ul class="dropdown-menu dropdown-menu-end">
+                                <ul class="dropdown-menu dropdown-menu-end" role="menu">
                                     {% if user.is_staff %}
-                                        <li><a class="dropdown-item" href="{% url 'admin:index' %}">Admin Panel</a></li>
-                                        <li><hr class="dropdown-divider"></li>
+                                        <li role="none"><a class="dropdown-item" href="{% url 'admin:index' %}" role="menuitem">Admin Panel</a></li>
+                                        <li role="none"><hr class="dropdown-divider"></li>
                                     {% endif %}
-                                    <li>
+                                    <li role="none">
                                         <form action="{% url 'logout' %}" method="post" class="px-2">
                                             {% csrf_token %}
-                                            <button type="submit" class="btn btn-sm btn-danger w-100" aria-label="Log out of system">Logout</button>
+                                            <button type="submit" class="btn btn-sm btn-danger w-100" role="menuitem" aria-label="Log out of the system">Logout</button>
                                         </form>
                                     </li>
                                 </ul>
                             </li>
                         {% else %}
-                            <li class="nav-item"><a class="nav-link" href="{% url 'login' %}">Login</a></li>
+                            <li class="nav-item" role="none"><a class="nav-link" href="{% url 'login' %}" role="menuitem">Login</a></li>
                         {% endif %}
                     </ul>
                 </div>
@@ -277,18 +287,18 @@
     </header>
     
     <div class="container-fluid px-4 mt-4 mb-5 flex-shrink-0">
-        <main id="main-content" role="main">
+        <main id="main-content" role="main" aria-label="Main Content Area">
             {% block content %}{% endblock %}
         </main>
     </div>
 
-    <footer class="footer mt-auto py-3 bg-light border-top">
+    <footer class="footer mt-auto py-3 bg-light border-top" role="contentinfo">
         <div class="container-fluid px-4 text-center">
             <span class="text-muted small">© {% now "Y" %} Rich Land Auto Supply. All rights reserved.</span>
         </div>
     </footer>
 
-    <!-- TOAST CONTAINER -->
+    <!-- TOAST NOTIFICATION CONTAINER -->
     <div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100" aria-live="polite" aria-atomic="true">
         {% if messages %}
             {% for message in messages %}
@@ -300,7 +310,7 @@
                         {% if message.tags == 'warning' %}<i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>{% endif %}
                         {{ message }}
                     </div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close notification"></button>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close notification message"></button>
                 </div>
             </div>
             {% endfor %}
@@ -318,28 +328,31 @@
         });
 
         document.addEventListener("DOMContentLoaded", function() {
-            var toastElList =[].slice.call(document.querySelectorAll('.toast'))
+            // Initialize Toasts
+            var toastElList =[].slice.call(document.querySelectorAll('.toast'));
             var toastList = toastElList.map(function(toastEl) {
-                var t = new bootstrap.Toast(toastEl, { delay: 3000 });
+                var t = new bootstrap.Toast(toastEl, { delay: 4000 });
                 t.show();
                 return t;
             });
 
+            // Initialize TomSelect Dropdowns
             document.querySelectorAll('.searchable-select').forEach(function(el) {
                 new TomSelect(el, {
                     create: false,
                     sortField: { field: "text", direction: "asc" },
-                    plugins: ['clear_button'],
+                    plugins:['clear_button'],
                     allowEmptyOption: true,
-                    placeholder: el.getAttribute('placeholder') || 'Type to search...'
+                    placeholder: el.getAttribute('placeholder') || 'Search options...'
                 });
             });
         });
 
+        // Auto-Logout Script for Security
         {% if user.is_authenticated %}
         (function() {
             let time;
-            const timeout = 15 * 60 * 1000; 
+            const timeout = 15 * 60 * 1000; // 15 minutes of inactivity
 
             function logout() {
                 const form = document.createElement('form');
