@@ -3,23 +3,25 @@ Django admin configuration for the inventory application.
 Registers models and customizes the admin interface for easy management.
 """
 
-from django.contrib import admin
-from django.utils import timezone
-from django.db import transaction
-from django.db.models import Sum, Q, DecimalField, OuterRef, Subquery, F
-from django.db.models.functions import Coalesce
 from decimal import Decimal
-from simple_history.admin import SimpleHistoryAdmin
-from django.contrib.auth.models import User, Group
-from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+
+from django.contrib import admin
 from django.contrib.auth.admin import GroupAdmin as BaseGroupAdmin
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Group, User
+from django.db import transaction
+from django.db.models import DecimalField, F, OuterRef, Q, Subquery, Sum
+from django.db.models.functions import Coalesce
+from django.utils import timezone
+from simple_history.admin import SimpleHistoryAdmin
+
+from core.cache_utils import clear_dashboard_cache
 
 from .models import (
-    Product, Category, StockTransaction, Supplier, PurchaseOrder, PurchaseOrderItem,
-    Customer, CustomerPayment, HydraulicSow, POSSale, Expense, ExpenseCategory,
-    PriceOverrideLog
+    Category, Customer, CustomerPayment, Expense, ExpenseCategory,
+    HydraulicSow, POSSale, PriceOverrideLog, Product, PurchaseOrder,
+    PurchaseOrderItem, StockTransaction, Supplier
 )
-from core.cache_utils import clear_dashboard_cache
 
 admin.site.site_header = "Rich Land Admin"
 admin.site.site_title = "Rich Land Admin Portal"
@@ -34,7 +36,6 @@ class CategoryAdmin(admin.ModelAdmin):
     Admin configuration for the Category model.
     Manages display, search, and slug pre-population for categories.
     """
-    """Admin configuration for product Categories."""
     list_display = ('name', 'slug')
     search_fields = ('name',)
     prepopulated_fields = {'slug': ('name',)}
@@ -59,14 +60,14 @@ class ProductAdmin(SimpleHistoryAdmin):
     Manages product display, filtering, searching, and cache clearing on changes.
     Quantity is read-only on change forms and excluded on add forms.
     """
-    """Admin configuration for Product models, tracking history and caching."""
     list_display = ('name', 'sku', 'category', 'price', 'quantity', 'status', 'last_edited_on')
     list_filter = ('status', 'category', 'date_updated')
     search_fields = ('name', 'sku')
     prepopulated_fields = {'slug': ('name',)}
-    list_editable = ('status',)
+    list_editable = ('status', 'price')
     history_list_display = ["status", "quantity", "price"]
     autocomplete_fields = ('category',)
+    list_per_page = 25
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -101,12 +102,12 @@ class StockTransactionAdmin(admin.ModelAdmin):
     Manages display, filtering, and searching for stock movements.
     Prevents direct addition of transactions and restores stock on deletion.
     """
-    """Admin configuration for direct viewing of Stock Transactions."""
     list_display = ('timestamp', 'product', 'transaction_type', 'transaction_reason', 'quantity', 'user', 'pos_sale')
-    list_filter = ('timestamp', 'transaction_type', 'transaction_reason', 'user')
-    search_fields = ('product__name', 'pos_sale__receipt_id', 'notes')
+    list_filter = ('transaction_type', 'transaction_reason', 'timestamp')
+    search_fields = ('product__name', 'pos_sale__receipt_id', 'notes', 'user__username')
     autocomplete_fields = ('product', 'user', 'pos_sale')
     date_hierarchy = 'timestamp'
+    list_per_page = 50
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -161,11 +162,11 @@ class CustomerAdmin(admin.ModelAdmin):
     Displays customer information, allows searching, and shows current balance.
     Includes inlines for Customer Payments and Hydraulic Sows.
     """
-    """Admin configuration for Customer profiles and financial balances."""
-    list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance_display')
-    search_fields = ('name', 'customer_id', 'email', 'phone')
-    inlines = [CustomerPaymentInline, HydraulicSowInline]
+    list_display = ('name', 'customer_id', 'email', 'phone', 'credit_limit', 'current_balance_display')
+    search_fields = ('name', 'customer_id', 'email', 'phone', 'tax_id')
+    inlines =[CustomerPaymentInline, HydraulicSowInline]
     readonly_fields = ('created_at', 'updated_at')
+    list_per_page = 25
 
     def get_queryset(self, request):
         # Optimized to avoid Cartesian product issues when summing multiple relations
@@ -203,11 +204,11 @@ class CustomerPaymentAdmin(admin.ModelAdmin):
     Manages display, filtering, searching, and autocomplete fields for customer payments.
     Clears dashboard cache on save.
     """
-    """Admin configuration for handling individual customer payments."""
     list_display = ('customer', 'amount', 'payment_date', 'reference_number', 'sale_paid', 'recorded_by')
-    list_filter = ('payment_date',)
-    search_fields = ('customer__name', 'reference_number', 'sale_paid__receipt_id')
+    list_filter = ('payment_date', 'recorded_by')
+    search_fields = ('customer__name', 'reference_number', 'sale_paid__receipt_id', 'notes')
     autocomplete_fields = ('customer', 'sale_paid', 'recorded_by')
+    date_hierarchy = 'payment_date'
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)
@@ -220,11 +221,11 @@ class HydraulicSowAdmin(admin.ModelAdmin):
     Admin configuration for the HydraulicSow model.
     Manages display, filtering, searching, and autocomplete fields for hydraulic sow records.
     """
-    """Admin configuration for customized scope of work requests."""
-    list_display = ('customer', 'date_created', 'application', 'hose_type')
-    list_filter = ('date_created',)
-    search_fields = ('customer__name', 'application', 'notes')
-    autocomplete_fields = ('customer',)
+    list_display = ('sow_id', 'customer', 'date_created', 'application', 'hose_type', 'cost')
+    list_filter = ('date_created', 'hose_type')
+    search_fields = ('sow_id', 'customer__name', 'application', 'notes')
+    autocomplete_fields = ('customer', 'created_by')
+    date_hierarchy = 'date_created'
 
 
 # --- Point of Sale ---
@@ -237,13 +238,13 @@ class POSSaleAdmin(admin.ModelAdmin):
     Includes stock transaction inlines and restores stock on sale deletion.
     Prevents direct addition or modification of sales via admin.
     """
-    """Admin configuration for managing point of sale receipts."""
     list_display = ('receipt_id', 'timestamp', 'customer', 'total_amount', 'payment_method', 'cashier', 'has_price_override')
-    list_filter = ('timestamp', 'payment_method', 'cashier', 'has_price_override')
-    search_fields = ('receipt_id', 'customer__name')
+    list_filter = ('payment_method', 'has_price_override', 'timestamp', 'cashier')
+    search_fields = ('receipt_id', 'customer__name', 'notes')
     inlines = [StockTransactionInline]
     autocomplete_fields = ('customer', 'cashier')
     date_hierarchy = 'timestamp'
+    list_per_page = 50
 
     def delete_model(self, request, obj):
         # Crucial: Restore stock when a sale is deleted from the admin
@@ -269,10 +270,9 @@ class PriceOverrideLogAdmin(admin.ModelAdmin):
     Displays read-only price override details, allowing filtering and searching.
     Prevents adding, changing, or deleting log entries via admin.
     """
-    """Admin configuration for tracking sales price overrides."""
     list_display = ('timestamp', 'pos_sale', 'product', 'salesman', 'original_price', 'override_price', 'price_difference')
-    list_filter = ('timestamp', 'salesman', 'product')
-    search_fields = ('pos_sale__receipt_id', 'product__name', 'salesman__username')
+    list_filter = ('timestamp', 'salesman')
+    search_fields = ('pos_sale__receipt_id', 'product__name', 'salesman__username', 'reason')
     date_hierarchy = 'timestamp'
     readonly_fields = ('pos_sale', 'product', 'salesman', 'original_price', 'override_price', 'reason', 'timestamp')
 
@@ -309,9 +309,8 @@ class SupplierAdmin(admin.ModelAdmin):
     Admin configuration for the Supplier model.
     Manages display and searching for supplier information.
     """
-    """Admin configuration for managing product vendors."""
     list_display = ('name', 'supplier_id', 'contact_person', 'email', 'phone')
-    search_fields = ('name', 'supplier_id', 'contact_person', 'email')
+    search_fields = ('name', 'supplier_id', 'contact_person', 'email', 'phone')
 
 
 @admin.register(PurchaseOrder)
@@ -321,7 +320,6 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     Manages display, filtering, searching, and inlines for purchase order items.
     Includes logic for stock-in upon status change to 'RECEIVED'.
     """
-    """Admin configuration for viewing and completing Purchase Orders."""
     list_display = ('order_id', 'supplier', 'order_date', 'status')
     list_filter = ('status', 'order_date')
     search_fields = ('order_id', 'supplier__name')
@@ -352,7 +350,6 @@ class ExpenseCategoryAdmin(admin.ModelAdmin):
     Admin configuration for the ExpenseCategory model.
     Manages display and searching for expense categories.
     """
-    """Admin configuration for organizing types of expenses."""
     list_display = ('name',)
     search_fields = ('name',)
 
@@ -364,10 +361,9 @@ class ExpenseAdmin(admin.ModelAdmin):
     Manages display, filtering, searching, and autocomplete fields for expenses.
     Clears dashboard cache on save and delete.
     """
-    """Admin configuration for tracking business expenditures."""
     list_display = ('expense_date', 'description', 'category', 'amount', 'recorded_by')
-    list_filter = ('expense_date', 'category')
-    search_fields = ('description', 'category__name')
+    list_filter = ('category', 'expense_date', 'recorded_by')
+    search_fields = ('description', 'category__name', 'recorded_by__username')
     autocomplete_fields = ('category', 'recorded_by')
     date_hierarchy = 'expense_date'
 
