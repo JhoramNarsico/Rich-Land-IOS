@@ -25,12 +25,12 @@
         {% if out_of_stock_products %}
         <div class="col-md-{% if low_stock_products %}6{% else %}12{% endif %}">
             <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100" role="alert">
-                <div class="fs-3 me-3 text-danger"><i class="fas fa-times-circle" aria-hidden="true"></i></div>
+                <div class="fs-3 me-3 text-danger" aria-hidden="true"><i class="fas fa-times-circle"></i></div>
                 <div>
                     <div class="fw-bold text-danger">Out of Stock Alert</div>
                     <div class="small text-dark">
                         <strong>{{ out_of_stock_count }}</strong> item(s) have hit 0 quantity.
-                        <a href="{% url 'inventory:product_list' %}?stock_status=out_of_stock" class="text-danger fw-bold text-decoration-underline ms-1" aria-label="View out of stock list">View List</a>.
+                        <a href="{% url 'inventory:product_list' %}?stock_status=out_of_stock" class="text-danger fw-bold text-decoration-underline ms-1" aria-label="View out of stock product list">View List</a>.
                     </div>
                 </div>
             </div>
@@ -41,12 +41,12 @@
         {% if low_stock_products %}
         <div class="col-md-{% if out_of_stock_products %}6{% else %}12{% endif %}">
             <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center p-3 m-0 h-100" role="alert">
-                <div class="fs-3 me-3 text-warning"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i></div>
+                <div class="fs-3 me-3 text-warning" aria-hidden="true"><i class="fas fa-exclamation-triangle"></i></div>
                 <div>
                     <div class="fw-bold text-warning-emphasis" style="color: #d35400 !important;">Low Stock Warning</div>
                     <div class="small text-dark">
                         <strong>{{ low_stock_count }}</strong> item(s) are running low.
-                        <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="fw-bold text-decoration-underline ms-1" style="color: #d35400 !important;" aria-label="View low stock list">View List</a>.
+                        <a href="{% url 'inventory:product_list' %}?stock_status=low_stock" class="fw-bold text-decoration-underline ms-1" style="color: #d35400 !important;" aria-label="View low stock product list">View List</a>.
                     </div>
                 </div>
             </div>
@@ -60,7 +60,7 @@
     <section class="row g-4 mb-4" aria-label="Key Performance Indicators">
         
         <!-- Card 1: Total Products -->
-        <div class="col-md-4">
+        <article class="col-md-4">
             <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -82,10 +82,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </article>
 
         <!-- Card 2: Inventory Value -->
-        <div class="col-md-4">
+        <article class="col-md-4">
             <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -102,10 +102,10 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </article>
 
         <!-- Card 3: 30-Day Revenue -->
-        <div class="col-md-4">
+        <article class="col-md-4">
             <div class="card h-100 border-0 shadow-sm hover-shadow transition-all">
                 <div class="card-body">
                     <div class="d-flex justify-content-between align-items-start">
@@ -136,7 +136,7 @@
                     </div>
                 </div>
             </div>
-        </div>
+        </article>
     </section>
 
     <!-- 4. CHARTS & TABLES -->
@@ -156,7 +156,7 @@
         </section>
         
         <!-- Recent Products List -->
-        <section class="col-lg-4 mb-4" aria-labelledby="recent-items-heading">
+        <aside class="col-lg-4 mb-4" aria-labelledby="recent-items-heading">
             <div class="card shadow-sm border-0 h-100">
                 <div class="card-header bg-white py-3 border-bottom-0">
                     <h3 class="h5 m-0 fw-bold text-dark" id="recent-items-heading">Recently Added</h3>
@@ -194,7 +194,7 @@
                     <a href="{% url 'inventory:product_list' %}" class="btn btn-sm btn-outline-secondary w-100" aria-label="Navigate to view all products">View All Products</a>
                 </div>
             </div>
-        </section>
+        </aside>
     </div>
 {% endblock %}
 
