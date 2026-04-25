@@ -1,38 +1,47 @@
-# core/urls.py
+"""
+Main URL Configuration for Rich Land IOS.
 
-from django.contrib import admin
-from django.urls import path, include
+This module acts as the central router for the entire application, 
+delegating URLs to specific apps (like inventory), handling authentication, 
+serving API documentation, and managing static/media files in development.
+"""
+
 from django.conf import settings
 from django.conf.urls.static import static
-from drf_spectacular.views import SpectacularAPIView, SpectacularRedocView, SpectacularSwaggerView
-from inventory.views import CustomLoginView 
+from django.contrib import admin
+from django.urls import include, path
 
-# Import views from the current directory (core/views.py)
-from . import views 
+from drf_spectacular.views import (
+    SpectacularAPIView, 
+    SpectacularRedocView, 
+    SpectacularSwaggerView
+)
 
-urlpatterns = [
-    # 1. Homepage -> Dashboard
+from inventory.views import CustomLoginView
+from . import views
+
+urlpatterns =[
+    # --- 1. Main Dashboard ---
     path('', views.home, name='home'),
     
-    # 2. Admin Panel
+    # --- 2. Admin Interface ---
     path('admin/', admin.site.urls),
     
-    # 3. Custom Login (Overrides default)
+    # --- 3. Authentication ---
     path('accounts/login/', CustomLoginView.as_view(), name='login'),
-    
-    # 4. Standard Auth URLs (Logout, Password Reset)
     path('accounts/', include('django.contrib.auth.urls')),
     
-    # 5. API & Documentation
+    # --- 4. REST API & Documentation (Swagger/ReDoc) ---
     path('api/', include(('inventory.api_urls', 'inventory-api'))),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
     path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
     path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
     
-    # 6. Inventory App URLs (This handles product_list, etc.)
+    # --- 5. Core Application Routing ---
     path('inventory/', include('inventory.urls')),
 ]
 
+# Serve Static and Media files automatically during local development
 if settings.DEBUG:
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
