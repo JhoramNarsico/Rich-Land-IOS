@@ -586,12 +586,9 @@
         .then(data => {
             if (data.status === 'success') {
                 paymentModal.hide();
-                // NOTE: The hidden receipt print logic is untouched and will work as before.
-                // printReceipt(data); 
-                alert('Sale Completed Successfully!');
-                cart = [];
-                renderCart();
-                setTimeout(() => location.reload(), 1000); // Reload to get fresh stock data
+                // Automatically redirect to the receipt detail page
+                const receiptUrl = "{% url 'inventory:pos_receipt_detail' 'PLACEHOLDER' %}".replace('PLACEHOLDER', data.receipt_id);
+                window.location.href = receiptUrl;
             } else {
                 alert(`Error: ${data.message}`);
                 confirmBtn.innerText = 'Complete Sale';

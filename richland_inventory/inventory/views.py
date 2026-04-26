@@ -59,6 +59,23 @@ from .serializers import (
 from .utils import render_to_pdf
 
 
+# --- HELPER FUNCTIONS ---
+
+def get_service_product():
+    """Returns a virtual 'Product' representing hydraulic services to enable transaction logging."""
+    category, _ = Category.objects.get_or_create(name="Services")
+    product, _ = Product.objects.get_or_create(
+        sku="SVC-HYD-001",
+        defaults={
+            'name': "Hydraulic Service Job",
+            'category': category,
+            'price': Decimal('0.00'),
+            'quantity': 0,
+            'status': Product.Status.ACTIVE
+        }
+    )
+    return product
+
 @login_required
 @permission_required('inventory.add_hydraulicsow', raise_exception=True)
 def hydraulic_sow_create(request, pk):
@@ -139,42 +156,57 @@ def hydraulic_sow_create(request, pk):
             )
             return render(request, 'inventory/hydraulic_sow_form.html', {'customer': customer, 'sow': sow_data, 'page_title': 'Create Hydraulic SOW', 'is_charged': False, 'next_url': next_url})
 
-        sow = HydraulicSow.objects.create(
-            customer=customer,
-            created_by=request.user,
-            hose_type=request.POST.get('hose_type', ''),
-            diameter=request.POST.get('diameter', ''),
-            length=request.POST.get('length') or None,
-            pressure=request.POST.get('pressure') or None,
-            application=request.POST.get('application', ''),
-            fitting_a=request.POST.get('fitting_a', ''),
-            fitting_b=request.POST.get('fitting_b', ''),
-            orientation=request.POST.get('orientation') or None,
-            protection=request.POST.get('protection', ''),
-            cost=cost_decimal if cost_decimal > 0 else None,
-            notes=request.POST.get('notes', '')
-        )
+        with transaction.atomic():
+            sow = HydraulicSow.objects.create(
+                customer=customer,
+                created_by=request.user,
+                hose_type=request.POST.get('hose_type', ''),
+                diameter=request.POST.get('diameter', ''),
+                length=request.POST.get('length') or None,
+                pressure=request.POST.get('pressure') or None,
+                application=request.POST.get('application', ''),
+                fitting_a=request.POST.get('fitting_a', ''),
+                fitting_b=request.POST.get('fitting_b', ''),
+                orientation=request.POST.get('orientation') or None,
+                protection=request.POST.get('protection', ''),
+                cost=cost_decimal if cost_decimal > 0 else None,
+                notes=request.POST.get('notes', '')
+            )
 
-        if cost_decimal > 0:
-            # For Walk-in Customers, always generate a receipt (Cash default) if there is a cost.
-            # For named customers, only generate if charged (Credit) or marked paid (Cash).
-            if charge_account or mark_paid or customer.name == "Walk-in Customer":
-                payment_method = 'CREDIT' if charge_account else 'CASH'
-                amount_paid = 0 if charge_account else cost_decimal
+            if cost_decimal > 0:
+                # For Walk-in Customers, always generate a receipt (Cash default) if there is a cost.
+                # For named customers, only generate if charged (Credit) or marked paid (Cash).
+                if charge_account or mark_paid or customer.name == "Walk-in Customer":
+                    payment_method = 'CREDIT' if charge_account else 'CASH'
+                    amount_paid = 0 if charge_account else cost_decimal
 
-                receipt_id = sow.sow_id
-                POSSale.objects.create(
-                    receipt_id=receipt_id,
-                    customer=customer,
-                    cashier=request.user,
-                    payment_method=payment_method,
-                    total_amount=cost_decimal,
-                    amount_paid=amount_paid,
-                    change_given=0,
-                    notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
-                )
-                messages.success(request, f"Hydraulic SOW saved. Receipt generated.")
-                return redirect('inventory:pos_receipt_detail', receipt_id=receipt_id)
+                    receipt_id = sow.sow_id
+                    sale_record = POSSale.objects.create(
+                        receipt_id=receipt_id,
+                        customer=customer,
+                        cashier=request.user,
+                        payment_method=payment_method,
+                        total_amount=cost_decimal,
+                        amount_paid=amount_paid,
+                        change_given=0,
+                        notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
+                    )
+
+                    # LOG INDIVIDUAL ITEM IN TRANSACTION LOG
+                    service_product = get_service_product()
+                    StockTransaction.objects.create(
+                        product=service_product,
+                        pos_sale=sale_record,
+                        transaction_type='OUT',
+                        transaction_reason=StockTransaction.TransactionReason.SALE,
+                        quantity=1,
+                        selling_price=cost_decimal,
+                        user=request.user,
+                        notes=f"Hydraulic Service: {sow.hose_type} | {sow.diameter}\" | {sow.application}"
+                    )
+
+                    messages.success(request, f"Hydraulic SOW saved. Receipt and transaction log generated.")
+                    return redirect('inventory:pos_receipt_detail', receipt_id=receipt_id)
 
         messages.success(request, f"Hydraulic Scope of Work saved for {customer.name}")
             
@@ -294,6 +326,14 @@ def hydraulic_sow_update(request, pk, sow_pk):
             if ledger_entry.total_amount != cost_decimal:
                 ledger_entry.total_amount = cost_decimal
                 ledger_entry.save()
+
+                # Update existing transaction if it exists
+                st = StockTransaction.objects.filter(pos_sale=ledger_entry).first()
+                if st:
+                    st.selling_price = cost_decimal
+                    st.notes = f"Hydraulic Service: {sow.hose_type} | {sow.diameter}\" | {sow.application} (Updated)"
+                    st.save()
+
                 messages.success(request, f"SOW updated. Associated charge was adjusted to ₱{cost_decimal:,.2f}.")
             else:
                 messages.success(request, "SOW updated. No changes to the associated charge.")
@@ -301,15 +341,30 @@ def hydraulic_sow_update(request, pk, sow_pk):
             payment_method = 'CREDIT' if charge_to_account else 'CASH'
             amount_paid = 0 if charge_to_account else cost_decimal
             
-            POSSale.objects.create(
-                receipt_id=sow.sow_id, 
-                customer=customer, 
-                cashier=request.user, 
-                payment_method=payment_method, 
-                total_amount=cost_decimal, 
-                amount_paid=amount_paid,
-                notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
-            )
+            with transaction.atomic():
+                sale_record = POSSale.objects.create(
+                    receipt_id=sow.sow_id, 
+                    customer=customer, 
+                    cashier=request.user, 
+                    payment_method=payment_method, 
+                    total_amount=cost_decimal, 
+                    amount_paid=amount_paid,
+                    notes=f"Hydraulic Job #{sow.id}: {sow.hose_type} ({sow.application})"
+                )
+
+                # LOG INDIVIDUAL ITEM IN TRANSACTION LOG
+                service_product = get_service_product()
+                StockTransaction.objects.create(
+                    product=service_product,
+                    pos_sale=sale_record,
+                    transaction_type='OUT',
+                    transaction_reason=StockTransaction.TransactionReason.SALE,
+                    quantity=1,
+                    selling_price=cost_decimal,
+                    user=request.user,
+                    notes=f"Hydraulic Service: {sow.hose_type} | {sow.diameter}\" | {sow.application}"
+                )
+
             messages.success(request, f"SOW updated and a new charge of ₱{cost_decimal:,.2f} was added to the account.")
         else:
             messages.success(request, "Hydraulic SOW updated successfully.")
