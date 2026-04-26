@@ -3,9 +3,13 @@
 
 {% block title %}Purchase Orders{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item active" aria-current="page">Procurement</li>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid pb-5">
-
+    
     <!-- 1. HEADER -->
     <div class="d-flex justify-content-between align-items-end mb-4">
         <div>
@@ -13,11 +17,14 @@
             <p class="text-muted small mb-0">Manage supplier orders and incoming stock shipments.</p>
         </div>
         <div class="d-flex gap-2">
+            <!-- Create Delivery (via Supplier) -->
+            <a href="{% url 'inventory:supplier_list' %}" class="btn btn-primary shadow-sm px-3">
+                <i class="fas fa-truck-loading me-1"></i> New Delivery
+            </a>
             <!-- TOGGLE FILTER BUTTON -->
-            <button class="btn btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
+            <button class="btn btn-outline-secondary shadow-sm" type="button" data-bs-toggle="collapse" data-bs-target="#filterPanel">
                 <i class="fas fa-filter me-2"></i>Filters
             </button>
-            <!-- Create Order Button Removed -->
         </div>
     </div>
 

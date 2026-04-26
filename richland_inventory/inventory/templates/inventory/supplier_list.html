@@ -3,6 +3,11 @@
 
 {% block title %}Suppliers{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'inventory:purchaseorder_list' %}" class="text-decoration-none text-primary">Procurement</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Suppliers</li>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid pb-5">
 

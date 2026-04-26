@@ -3,6 +3,10 @@
 
 {% block title %}Customers{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item active" aria-current="page">Customers</li>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid pb-5">
     
@@ -13,6 +17,12 @@
             <p class="text-muted small mb-0">Manage client profiles and ledger balances.</p>
         </div>
         <div class="d-flex gap-2">
+            <!-- Add New Customer Button -->
+            {% if user.is_superuser %}
+            <a href="{% url 'inventory:customer_create' %}" class="btn btn-primary shadow-sm px-3">
+                <i class="fas fa-user-plus me-1"></i> Add New Customer
+            </a>
+            {% endif %}
             <!-- Export Dropdown -->
             <div class="btn-group">
                 <button type="button" class="btn btn-outline-secondary shadow-sm dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
@@ -32,48 +42,36 @@
     <!-- 2. SEARCH & FILTER BAR -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3 bg-white rounded-3">
-            <form method="get" class="row g-2 align-items-center">
-                <div class="col-md-5 col-lg-4">
+            <div class="row g-2 align-items-center">
+                <div class="col-md-6 col-lg-5">
                     <div class="input-group">
                         <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search name, email, phone, or balance..." value="{{ q|default:'' }}">
+                        <input type="text" id="customerSearch" class="form-control border-start-0 ps-0" placeholder="Search name, email, or phone...">
                     </div>
                 </div>
-                <div class="col-md-3 col-lg-3">
-                    <select name="status" class="form-select" onchange="this.form.submit()">
-                        <option value="">All Statuses</option>
-                        <option value="outstanding" {% if status == 'outstanding' %}selected{% endif %}>Outstanding Balance</option>
-                        <option value="cleared" {% if status == 'cleared' %}selected{% endif %}>Cleared</option>
-                    </select>
+                <div class="col-auto ms-auto">
+                    <span class="text-muted small fw-bold">Click headers to sort:</span>
                 </div>
-                <div class="col-md-2">
-                    <button type="submit" class="btn btn-primary w-100">Search</button>
-                </div>
-                {% if q %}
-                <div class="col-auto">
-                    <a href="{% url 'inventory:customer_list' %}" class="btn btn-light border" title="Clear Search"><i class="fas fa-times"></i></a>
-                </div>
-                {% endif %}
-            </form>
+            </div>
         </div>
     </div>
 
     <!-- 3. CUSTOMER TABLE -->
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="customerTable">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4 text-uppercase text-secondary small" style="width: 30%;">Customer</th>
+                        <th class="ps-4 text-uppercase text-secondary small" style="width: 30%; cursor: pointer;" onclick="sortTable(0)">Customer <i class="fas fa-sort ms-1"></i></th>
                         <th class="text-uppercase text-secondary small" style="width: 20%;">Contact Info</th>
                         <th class="text-uppercase text-secondary small" style="width: 20%;">Location</th>
-                        <th class="text-end text-uppercase text-secondary small" style="width: 15%;">Balance (₱)</th>
+                        <th class="text-end text-uppercase text-secondary small" style="width: 15%; cursor: pointer;" onclick="sortTable(3)">Balance (₱) <i class="fas fa-sort ms-1"></i></th>
                         <th class="text-end text-uppercase text-secondary small pe-4" style="width: 15%;">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white">
+                <tbody class="bg-white" id="customerTableBody">
                     {% for customer in customers %}
-                    <tr>
+                    <tr data-name="{{ customer.name|lower }}" data-email="{{ customer.email|lower }}" data-phone="{{ customer.phone|lower }}" data-balance="{{ customer.balance }}">
                         <!-- Name & Avatar -->
                         <td class="ps-4 position-relative">
                             <div class="d-flex align-items-center">
@@ -135,9 +133,6 @@
                         <td colspan="5" class="text-center py-5">
                             <div class="text-muted mb-2"><i class="fas fa-users fa-3x opacity-25"></i></div>
                             <p class="text-muted fw-medium">No customers found.</p>
-                            {% if q %}
-                                <a href="{% url 'inventory:customer_list' %}" class="btn btn-sm btn-outline-primary">Clear Search</a>
-                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
@@ -145,6 +140,41 @@
             </table>
         </div>
     </div>
+
+<script>
+    // Real-time Search
+    document.getElementById('customerSearch').addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('#customerTableBody tr').forEach(row => {
+            const name = row.getAttribute('data-name');
+            const email = row.getAttribute('data-email');
+            const phone = row.getAttribute('data-phone');
+            row.style.display = (name.includes(term) || email.includes(term) || phone.includes(term)) ? '' : 'none';
+        });
+    });
+
+    // Sorting Functionality
+    function sortTable(colIndex) {
+        const table = document.getElementById("customerTable");
+        let rows = Array.from(table.tBodies[0].rows);
+        const ascending = table.getAttribute('data-sort-asc') !== 'true';
+        
+        rows.sort((a, b) => {
+            let valA, valB;
+            if(colIndex === 0) { // Name
+                valA = a.getAttribute('data-name');
+                valB = b.getAttribute('data-name');
+            } else { // Balance
+                valA = parseFloat(a.getAttribute('data-balance'));
+                valB = parseFloat(b.getAttribute('data-balance'));
+            }
+            return ascending ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+        });
+        
+        table.setAttribute('data-sort-asc', ascending);
+        rows.forEach(row => table.tBodies[0].appendChild(row));
+    }
+</script>
 
     <!-- 4. PAGINATION -->
     {% if is_paginated %}

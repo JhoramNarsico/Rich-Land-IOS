@@ -31,9 +31,14 @@ class CategorySerializer(serializers.ModelSerializer):
 
 class CustomerSerializer(serializers.ModelSerializer):
     """Serializer for the Customer billing profile model."""
+    balance = serializers.SerializerMethodField()
+
     class Meta:
         model = Customer
-        fields = '__all__'
+        fields = ['id', 'customer_id', 'name', 'email', 'phone', 'address', 'tax_id', 'created_at', 'updated_at', 'balance']
+
+    def get_balance(self, obj):
+        return obj.get_balance()
 
 
 class CustomerPaymentSerializer(serializers.ModelSerializer):

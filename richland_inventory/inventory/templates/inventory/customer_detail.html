@@ -3,19 +3,19 @@
 
 {% block title %}{{ customer.name }} - Customer Details{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'inventory:customer_list' %}" class="text-decoration-none text-primary">Customers</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Profile</li>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid pb-5">
     
     <!-- 1. HEADER & ACTIONS -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1 small text-uppercase fw-bold">
-                    <li class="breadcrumb-item"><a href="{% url 'inventory:customer_list' %}" class="text-decoration-none text-muted">Customers</a></li>
-                    <li class="breadcrumb-item active text-primary" aria-current="page">Profile</li>
-                </ol>
-            </nav>
             <h2 class="fw-bold text-dark mb-0">{{ customer.name }}</h2>
+            <div class="text-muted small">ID: <code class="text-secondary">{{ customer.customer_id }}</code></div>
         </div>
         
         <div class="btn-group">
@@ -28,7 +28,7 @@
             <a href="{% url 'inventory:hydraulic_sow_create' pk=customer.pk %}" class="btn btn-outline-info">
                 <i class="fas fa-tools me-2"></i>New SOW
             </a>
-            <a href="{% url 'inventory:customer_update' pk=customer.pk %}" class="btn btn-primary">
+            <a href="{% url 'inventory:customer_update' pk=customer.pk %}" class="btn btn-primary shadow-sm">
                 <i class="fas fa-edit me-2"></i>Edit Profile
             </a>
         </div>

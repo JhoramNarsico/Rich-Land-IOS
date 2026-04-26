@@ -14,8 +14,8 @@
     <meta property="og:description" content="Integrated operations, inventory tracking, and POS management.">
     <meta property="og:type" content="website">
 
-    <!-- Favicon placeholder (Best practice) -->
-    <link rel="icon" type="image/x-icon" href="{% static 'images/favicon.ico' %}">
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'images/logo.png' %}">
 
     <!-- Google Fonts: Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -253,6 +253,7 @@
                             </a>
                             <ul class="dropdown-menu" role="menu">
                                 <li role="none"><a class="dropdown-item" href="{% url 'inventory:pos_dashboard' %}" role="menuitem">Open Terminal</a></li>
+                                <li role="none"><a class="dropdown-item" href="{% url 'inventory:refund_portal' %}" role="menuitem">Refund Portal</a></li>
                                 <li role="none"><a class="dropdown-item" href="{% url 'inventory:pos_history' %}" role="menuitem">Sales History</a></li>
                             </ul>
                         </li>
@@ -286,7 +287,17 @@
         </nav>
     </header>
     
-    <div class="container-fluid px-4 mt-4 mb-5 flex-shrink-0">
+    <div class="container-fluid px-4 mt-3">
+        <!-- Breadcrumb Container -->
+        <nav aria-label="breadcrumb" id="breadcrumb-nav">
+            <ol class="breadcrumb mb-0 small text-uppercase fw-bold">
+                <li class="breadcrumb-item"><a href="{% url 'home' %}" class="text-decoration-none text-primary">Dashboard</a></li>
+                {% block breadcrumb %}{% endblock %}
+            </ol>
+        </nav>
+    </div>
+    
+    <div class="container-fluid px-4 mt-3 mb-5 flex-shrink-0">
         <main id="main-content" role="main" aria-label="Main Content Area">
             {% block content %}{% endblock %}
         </main>

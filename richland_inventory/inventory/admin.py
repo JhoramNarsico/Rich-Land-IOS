@@ -100,7 +100,7 @@ class StockTransactionAdmin(admin.ModelAdmin):
     """
     Admin configuration for the StockTransaction model.
     Manages display, filtering, and searching for stock movements.
-    Prevents direct addition of transactions and restores stock on deletion.
+    Restores stock on deletion.
     """
     list_display = ('timestamp', 'product', 'transaction_type', 'transaction_reason', 'quantity', 'user', 'pos_sale')
     list_filter = ('transaction_type', 'transaction_reason', 'timestamp')
@@ -114,7 +114,7 @@ class StockTransactionAdmin(admin.ModelAdmin):
         clear_dashboard_cache()
 
     def delete_model(self, request, obj):
-        # Restore stock if a transaction is manually deleted (e.g. error correction)
+        # Restore stock if a transaction is manually deleted
         with transaction.atomic():
             product = obj.product
             if obj.transaction_type == 'IN':
@@ -126,6 +126,35 @@ class StockTransactionAdmin(admin.ModelAdmin):
             clear_dashboard_cache()
 
     def has_add_permission(self, request):
+        return False
+
+# --- Proxy Model for Refund History ---
+class RefundHistory(StockTransaction):
+    class Meta:
+        proxy = True
+        verbose_name = "Refund History"
+        verbose_name_plural = "Refund History"
+
+@admin.register(RefundHistory)
+class RefundHistoryAdmin(admin.ModelAdmin):
+    """
+    Admin configuration specifically for Refund History.
+    """
+    def get_queryset(self, request):
+        return RefundHistory.objects.filter(transaction_reason='RETURN')
+
+    list_display = ('timestamp', 'product', 'quantity', 'pos_sale', 'user', 'notes')
+    list_filter = ('timestamp', 'user')
+    search_fields = ('product__name', 'pos_sale__receipt_id', 'notes')
+    date_hierarchy = 'timestamp'
+    
+    def has_add_permission(self, request):
+        return False
+    
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False
 
 

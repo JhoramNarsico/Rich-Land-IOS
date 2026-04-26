@@ -3,6 +3,11 @@
 
 {% block title %}POS Sales History{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'inventory:pos_dashboard' %}" class="text-decoration-none text-primary">POS</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Sales History</li>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid pb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -12,53 +17,33 @@
         </a>
     </div>
 
-    <!-- Search Filter -->
+    <!-- 2. SEARCH BAR -->
     <div class="card border-0 shadow-sm mb-4">
         <div class="card-body p-3">
-            <form method="get" class="d-flex gap-2">
-                <div class="input-group" style="width: 200px;">
-                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-filter text-muted"></i></span>
-                    <select name="type" class="form-select border-start-0 ps-0" onchange="this.form.submit()">
-                        <option value="">All Types</option>
-                        <option value="REC" {% if type == 'REC' %}selected{% endif %}>Sales (REC)</option>
-                        <option value="JOB" {% if type == 'JOB' %}selected{% endif %}>Jobs (JOB)</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <span class="input-group-text bg-white border-end-0"><i class="fas fa-search text-muted"></i></span>
-                    <input type="text" name="q" class="form-control border-start-0 ps-0" placeholder="Search Receipt ID, Cashier, or Amount..." value="{{ q }}">
-                    <button class="btn btn-primary" type="submit">Search</button>
-                </div>
-                {% if q or type %}
-                    <a href="{% url 'inventory:pos_history' %}" class="btn btn-outline-secondary" title="Clear Search"><i class="fas fa-times"></i></a>
-                {% endif %}
-            </form>
+            <input type="text" id="receiptSearch" class="form-control form-control-lg" placeholder="Search by Receipt ID, Customer, Cashier, or Amount...">
         </div>
     </div>
 
     <div class="card border-0 shadow-sm overflow-hidden">
         <div class="table-responsive">
-            <table class="table table-hover align-middle mb-0">
+            <table class="table table-hover align-middle mb-0" id="historyTable">
                 <thead class="bg-light">
                     <tr>
-                        <th class="ps-4">Receipt ID</th>
-                        <th>Date & Time</th>
+                        <th class="ps-4" style="cursor: pointer;" onclick="sortTable(0)">Receipt ID <i class="fas fa-sort ms-1"></i></th>
+                        <th style="cursor: pointer;" onclick="sortTable(1)">Date <i class="fas fa-sort ms-1"></i></th>
+                        <th style="cursor: pointer;" onclick="sortTable(2)">Customer <i class="fas fa-sort ms-1"></i></th>
                         <th>Cashier</th>
                         <th class="text-center">Method</th>
-                        <th class="text-end">Total Amount</th>
-                        <th class="text-end">Payment</th>
+                        <th class="text-end" style="cursor: pointer;" onclick="sortTable(5)">Total Amount <i class="fas fa-sort ms-1"></i></th>
                         <th class="text-end pe-4">Actions</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody id="historyTableBody">
                     {% for sale in sales %}
-                    <tr>
-                        <td class="ps-4 fw-bold font-monospace text-primary">
-                            {{ sale.receipt_id }}
-                        </td>
-                        <td>
-                            {{ sale.timestamp|date:"M d, Y" }} <small class="text-muted">{{ sale.timestamp|date:"h:i A" }}</small>
-                        </td>
+                    <tr data-rid="{{ sale.receipt_id|lower }}" data-customer="{{ sale.customer.name|lower|default:'walk-in customer' }}" data-cashier="{{ sale.cashier.username|lower }}" data-amount="{{ sale.total_amount }}" data-date="{{ sale.timestamp|date:'YmdHis' }}">
+                        <td class="ps-4 fw-bold font-monospace text-primary">{{ sale.receipt_id }}</td>
+                        <td>{{ sale.timestamp|date:"M d, Y h:i A" }}</td>
+                        <td>{{ sale.customer.name|default:"Walk-in Customer" }}</td>
                         <td>{{ sale.cashier.username }}</td>
                         <td class="text-center">
                             {% if sale.payment_method == 'CASH' %}
@@ -69,17 +54,11 @@
                                 <span class="badge bg-info-subtle text-info-emphasis border border-info-subtle rounded-pill px-2">Card</span>
                             {% elif sale.payment_method == 'GCASH' %}
                                 <span class="badge rounded-pill px-2" style="background-color: #0055FF30; color: #0055FF; border: 1px solid #0055FF80;">GCash</span>
-                            {% elif sale.payment_method == 'BANK' %}
-                                <span class="badge rounded-pill px-2" style="background-color: #A020F030; color: #A020F0; border: 1px solid #A020F080;">Bank</span>
                             {% else %}
                                 <span class="badge bg-light text-dark border rounded-pill px-2">{{ sale.get_payment_method_display }}</span>
                             {% endif %}
                         </td>
                         <td class="text-end fw-bold">₱{{ sale.total_amount|intcomma }}</td>
-                        <td class="text-end">
-                            <small class="text-muted d-block">Paid: ₱{{ sale.amount_paid|intcomma }}</small>
-                            <small class="text-success">Change: ₱{{ sale.change_given|intcomma }}</small>
-                        </td>
                         <td class="text-end pe-4">
                             <a href="{% url 'inventory:pos_receipt_detail' sale.receipt_id %}" class="btn btn-sm btn-outline-secondary" title="View Receipt">
                                 <i class="fas fa-receipt"></i> View
@@ -96,35 +75,44 @@
         </div>
     </div>
 
-    <!-- Pagination -->
-    {% if is_paginated %}
-    <div class="d-flex justify-content-center mt-4">
-        <nav>
-            <ul class="pagination">
-                {% if page_obj.has_previous %}
-                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}&{{ query_params }}">Previous</a></li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">Previous</span></li>
-                {% endif %}
-                
-                {% for i in elided_page_range %}
-                    {% if i == page_obj.paginator.ELLIPSIS %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    {% else %}
-                        <li class="page-item {% if page_obj.number == i %}active{% endif %}">
-                            <a class="page-link" href="?page={{ i }}&{{ query_params }}">{{ i }}</a>
-                        </li>
-                    {% endif %}
-                {% endfor %}
+<script>
+    // Real-time Search
+    document.getElementById('receiptSearch').addEventListener('input', function(e) {
+        const term = e.target.value.toLowerCase();
+        document.querySelectorAll('#historyTableBody tr').forEach(row => {
+            const rid = row.getAttribute('data-rid');
+            const customer = row.getAttribute('data-customer');
+            const cashier = row.getAttribute('data-cashier');
+            row.style.display = (rid.includes(term) || customer.includes(term) || cashier.includes(term)) ? '' : 'none';
+        });
+    });
 
-                {% if page_obj.has_next %}
-                    <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}&{{ query_params }}">Next</a></li>
-                {% else %}
-                    <li class="page-item disabled"><span class="page-link">Next</span></li>
-                {% endif %}
-            </ul>
-        </nav>
-    </div>
-    {% endif %}
-</div>
+    // Sorting Functionality
+    function sortTable(colIndex) {
+        const table = document.getElementById("historyTable");
+        let rows = Array.from(table.tBodies[0].rows);
+        const ascending = table.getAttribute('data-sort-asc') !== 'true';
+        
+        rows.sort((a, b) => {
+            let valA, valB;
+            if(colIndex === 0) { // Receipt ID
+                valA = a.getAttribute('data-rid');
+                valB = b.getAttribute('data-rid');
+            } else if(colIndex === 1) { // Date
+                valA = a.getAttribute('data-date');
+                valB = b.getAttribute('data-date');
+            } else if(colIndex === 2) { // Customer
+                valA = a.getAttribute('data-customer');
+                valB = b.getAttribute('data-customer');
+            } else { // Amount
+                valA = parseFloat(a.getAttribute('data-amount'));
+                valB = parseFloat(b.getAttribute('data-amount'));
+            }
+            return ascending ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+        });
+        
+        table.setAttribute('data-sort-asc', ascending);
+        rows.forEach(row => table.tBodies[0].appendChild(row));
+    }
+</script>
 {% endblock %}

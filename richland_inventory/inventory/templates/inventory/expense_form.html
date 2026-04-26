@@ -3,15 +3,21 @@
 
 {% block title %}{{ page_title|default:"Expense Form" }}{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="#" class="text-decoration-none text-muted">Insights</a></li>
+    <li class="breadcrumb-item"><a href="{% url 'inventory:expense_list' %}" class="text-decoration-none text-primary">Expenses</a></li>
+    <li class="breadcrumb-item active" aria-current="page">{% if object %}Edit{% else %}New{% endif %}</li>
+{% endblock %}
+
 {% block content %}
-<div class="container mt-5">
-    <div class="row justify-content-center">
-        <div class="col-md-8">
-            <div class="card shadow-sm">
-                <div class="card-header">
-                    <h4 class="mb-0 text-primary"><i class="fas fa-receipt me-2"></i>{{ page_title }}</h4>
-                </div>
-                <div class="card-body p-4">
+<div class="container-fluid mb-5" style="max-width: 1000px;">
+    
+    <!-- 1. HEADER -->
+    <div class="row mb-4 align-items-center">
+        <div class="col">
+            <h2 class="fw-bold text-dark mb-0">{{ page_title }}</h2>
+        </div>
+    </div>
                     <form method="post" enctype="multipart/form-data" novalidate id="expenseForm">
                         {% csrf_token %}
                         

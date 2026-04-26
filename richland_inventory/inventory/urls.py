@@ -26,7 +26,9 @@ urlpatterns =[
     
     # Custom Product Actions
     path('product/<slug:slug>/toggle_status/', views.product_toggle_status, name='product_toggle_status'),
-    path('product/<slug:slug>/refund/', views.product_refund, name='product_refund'),
+    path('pos/refund/', views.refund_portal, name='refund_portal'),
+    path('pos/refund/search/', views.refund_search, name='refund_search'),
+    path('pos/refund/process/', views.refund_process, name='refund_process'),
     path('products/import/', views.import_products, name='product_import'),
     
     # AJAX & API Endpoints
@@ -68,6 +70,7 @@ urlpatterns =[
     # CUSTOMERS & CRM
     # ==========================================
     path('customers/', views.CustomerListView.as_view(), name='customer_list'),
+    path('customers/create/', views.CustomerCreateView.as_view(), name='customer_create'),
     path('customers/<int:pk>/', views.CustomerDetailView.as_view(), name='customer_detail'),
     path('customers/<int:pk>/update/', views.CustomerUpdateView.as_view(), name='customer_update'),
     path('customers/<int:pk>/payment/', views.customer_payment, name='customer_payment'),

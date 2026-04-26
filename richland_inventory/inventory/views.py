@@ -59,22 +59,84 @@ from .serializers import (
 from .utils import render_to_pdf
 
 
-# --- HELPER FUNCTIONS ---
 
-def get_service_product():
-    """Returns a virtual 'Product' representing hydraulic services to enable transaction logging."""
-    category, _ = Category.objects.get_or_create(name="Services")
-    product, _ = Product.objects.get_or_create(
-        sku="SVC-HYD-001",
-        defaults={
-            'name': "Hydraulic Service Job",
-            'category': category,
-            'price': Decimal('0.00'),
-            'quantity': 0,
-            'status': Product.Status.ACTIVE
-        }
-    )
-    return product
+from django.http import JsonResponse
+from django.shortcuts import render, redirect, get_object_or_404
+from django.contrib import messages
+from django.db import transaction
+from django.db.models import Sum, Q
+from .models import POSSale, Product, StockTransaction, Category
+from decimal import Decimal
+
+# --- REFUND PORTAL ---
+
+@login_required
+@permission_required('inventory.can_adjust_stock', raise_exception=True)
+def refund_portal(request):
+    return render(request, 'inventory/refund.html')
+
+@login_required
+@permission_required('inventory.can_adjust_stock', raise_exception=True)
+def refund_search(request):
+    rid = request.GET.get('rid')
+    sale = POSSale.objects.filter(receipt_id=rid).first()
+    if not sale:
+        return JsonResponse({'status': 'error', 'message': 'Receipt not found'})
+    
+    items = []
+    # Fetch sold items and calculate remaining returnable quantity
+    for item in sale.items.filter(transaction_type='OUT', transaction_reason='SALE'):
+        # Skip Hydraulic Service jobs
+        if "Hydraulic Service" in item.product.name or item.product.sku == "SVC-HYD-001":
+            continue
+            
+        returned = sale.items.filter(
+            product=item.product, 
+            transaction_type='IN', 
+            transaction_reason='RETURN'
+        ).aggregate(qty=Sum('quantity'))['qty'] or 0
+        
+        remaining = item.quantity - returned
+        if remaining > 0:
+            items.append({'id': item.id, 'name': item.product.name, 'qty': remaining})
+            
+    return JsonResponse({'status': 'success', 'items': items})
+
+@login_required
+@permission_required('inventory.can_adjust_stock', raise_exception=True)
+@transaction.atomic
+def refund_process(request):
+    if request.method == 'POST':
+        rid = request.POST.get('receipt_id')
+        sale = POSSale.objects.get(receipt_id=rid)
+        
+        # Check if the receipt belongs to a Hydraulic SOW job
+        if sale.notes and "Hydraulic Job" in sale.notes:
+            messages.error(request, "Refunds for Hydraulic Service Jobs are not permitted.")
+            return redirect('inventory:refund_portal')
+        
+        for key, qty in request.POST.items():
+            if key.startswith('qty_') and int(qty) > 0:
+                item_id = key.split('_')[1]
+                item = sale.items.get(id=item_id)
+                
+                # Perform the return logic
+                StockTransaction.objects.create(
+                    product=item.product,
+                    pos_sale=sale,
+                    transaction_type='IN',
+                    transaction_reason='RETURN',
+                    quantity=int(qty),
+                    selling_price=item.selling_price,
+                    user=request.user,
+                    notes=f"Bulk Refund for {rid}"
+                )
+                item.product.quantity += int(qty)
+                item.product.save()
+                
+        messages.success(request, f"Refunds processed for receipt {rid}.")
+        return redirect('inventory:refund_portal')
+    return redirect('inventory:refund_portal')
 
 @login_required
 @permission_required('inventory.add_hydraulicsow', raise_exception=True)
@@ -1135,6 +1197,23 @@ def download_ledger_template(request):
     response['Content-Disposition'] = 'attachment; filename="ledger_import_template.xlsx"'
     wb.save(response)
     return response
+
+class CustomerCreateView(LoginRequiredMixin, UserPassesTestMixin, SuccessMessageMixin, CreateView):
+    model = Customer
+    form_class = CustomerForm
+    template_name = 'inventory/customer_form.html'
+    success_message = "Customer profile for '%(name)s' created successfully."
+
+    def test_func(self):
+        return self.request.user.is_superuser
+    
+    def get_success_url(self):
+        return reverse_lazy('inventory:customer_detail', kwargs={'pk': self.object.pk})
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context['page_title'] = "Add New Customer"
+        return context
 
 class CustomerUpdateView(LoginRequiredMixin, PermissionRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Customer

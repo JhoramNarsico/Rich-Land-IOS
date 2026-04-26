@@ -123,6 +123,24 @@
                                         </div>
                                     </td>
                                 </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end py-1 pe-3 border-0">Amount Paid</td>
+                                    <td class="text-end py-1 pe-2 border-0">
+                                        <div class="d-flex justify-content-between">
+                                            <span>&#8369;</span>
+                                            <span>{{ sale.amount_paid|intcomma }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td colspan="3" class="text-end py-1 pe-3 border-0">Change</td>
+                                    <td class="text-end py-1 pe-2 border-0">
+                                        <div class="d-flex justify-content-between">
+                                            <span>&#8369;</span>
+                                            <span>{{ sale.change_given|intcomma }}</span>
+                                        </div>
+                                    </td>
+                                </tr>
                             </tfoot>
                         </table>
                     </div>
@@ -196,12 +214,9 @@
 
 {% block extra_js %}
 <script>
-    // Automatically trigger print dialog when page loads
-    window.addEventListener('load', () => {
-        // Short delay to ensure styles are applied
-        setTimeout(() => {
-            window.print();
-        }, 500);
-    });
+    // Manual trigger for printing only when user clicks the "Print" button.
+    function printReceipt() {
+        window.print();
+    }
 </script>
 {% endblock %}

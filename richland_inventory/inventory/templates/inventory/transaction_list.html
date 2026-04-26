@@ -3,6 +3,11 @@
 
 {% block title %}Transaction Logs{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'inventory:product_list' %}" class="text-decoration-none text-primary">Inventory</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Transaction Logs</li>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid pb-5">
 

@@ -3,18 +3,17 @@
 
 {% block title %}{{ product.name }} - Details{% endblock %}
 
+{% block breadcrumb %}
+    <li class="breadcrumb-item"><a href="{% url 'inventory:product_list' %}" class="text-decoration-none text-primary">Inventory</a></li>
+    <li class="breadcrumb-item active" aria-current="page">Product Details</li>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid pb-5">
     
     <!-- 1. HEADER & ACTIONS -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-1 small text-uppercase fw-bold">
-                    <li class="breadcrumb-item"><a href="{% url 'inventory:product_list' %}" class="text-decoration-none text-muted">Inventory</a></li>
-                    <li class="breadcrumb-item active text-primary" aria-current="page">Details</li>
-                </ol>
-            </nav>
             <div class="d-flex align-items-center gap-3">
                 <h2 class="fw-bold text-dark mb-0">{{ product.name }}</h2>
                 {% if product.status == 'ACTIVE' %}
@@ -260,28 +259,11 @@
                     <h6 class="fw-bold text-primary mb-0"><i class="fas fa-undo me-2"></i>Process Return</h6>
                 </div>
                 <div class="card-body">
-                    <form method="post" action="{% url 'inventory:product_refund' slug=product.slug %}">
-                        {% csrf_token %}
-                        <div class="row">
-                            <div class="col-12 mb-3">
-                                <label class="form-label small text-uppercase fw-bold text-muted">Receipt</label>
-                                {{ refund_form.pos_sale }}
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label small text-uppercase fw-bold text-muted">Qty</label>
-                                {{ refund_form.quantity }}
-                            </div>
-                            <div class="col-12 mb-3">
-                                <label class="form-label small text-uppercase fw-bold text-muted">Reason</label>
-                                {{ refund_form.notes }}
-                            </div>
-                        </div>
-                        <div class="d-grid">
-                            <button type="submit" class="btn btn-outline-primary">
-                                <i class="fas fa-box-open me-2"></i> Restock Item
-                            </button>
-                        </div>
-                    </form>
+                    <div class="d-grid">
+                        <a href="{% url 'inventory:refund_portal' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-undo me-2"></i>Go to Refund Portal
+                        </a>
+                    </div>
                 </div>
             </div>
             {% endif %}
