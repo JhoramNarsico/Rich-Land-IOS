@@ -412,7 +412,7 @@ def generate_customer_list_export(customers, format_type, request):
         ws.row_dimensions[1].height = 30
 
         current_row = 4
-        headers =['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Credit Limit', 'Current Balance']
+        headers =['Name', 'Email', 'Phone', 'Address', 'Tax ID', 'Current Balance']
         for col_num, header in enumerate(headers, 1):
             cell = ws.cell(row=current_row, column=col_num)
             cell.value = header; cell.font = header_font; cell.fill = header_fill
@@ -425,12 +425,11 @@ def generate_customer_list_export(customers, format_type, request):
             ws.cell(row=current_row, column=3, value=customer.phone).alignment = data_alignment
             ws.cell(row=current_row, column=4, value=customer.address).alignment = data_alignment
             ws.cell(row=current_row, column=5, value=customer.tax_id).alignment = data_alignment
-            c6 = ws.cell(row=current_row, column=6, value=customer.credit_limit); c6.number_format = '#,##0.00'; c6.alignment = data_alignment_right
-            c7 = ws.cell(row=current_row, column=7, value=customer.get_balance()); c7.number_format = '#,##0.00'; c7.alignment = data_alignment_right
-            for col in range(1, 8): ws.cell(row=current_row, column=col).border = thin_border
+            c6 = ws.cell(row=current_row, column=6, value=customer.get_balance()); c6.number_format = '#,##0.00'; c6.alignment = data_alignment_right; c6.font = Font(bold=True)
+            for col in range(1, 7): ws.cell(row=current_row, column=col).border = thin_border
 
         ws.column_dimensions['A'].width = 30; ws.column_dimensions['B'].width = 25; ws.column_dimensions['C'].width = 18; ws.column_dimensions['D'].width = 40
-        ws.column_dimensions['E'].width = 18; ws.column_dimensions['F'].width = 15; ws.column_dimensions['G'].width = 15
+        ws.column_dimensions['E'].width = 18; ws.column_dimensions['F'].width = 15
 
         response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
         response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
@@ -448,18 +447,18 @@ def generate_customer_list_export(customers, format_type, request):
         table = document.add_table(rows=1, cols=4, style='Table Grid')
         table.autofit = False
         table.columns[0].width = Inches(2.0) # Name
-        table.columns[1].width = Inches(1.8) # Contact
-        table.columns[2].width = Inches(2.0) # Address
-        table.columns[3].width = Inches(1.7) # Credit Info
+        table.columns[1].width = Inches(2.0) # Contact
+        table.columns[2].width = Inches(2.3) # Address
+        table.columns[3].width = Inches(1.2) # Balance
 
-        style_table_header(table.rows[0],['Name', 'Contact', 'Address', 'Credit Info'])
+        style_table_header(table.rows[0],['Name', 'Contact', 'Address', 'Balance'])
         
         for customer in customers:
             row_cells = table.add_row().cells
             row_cells[0].text = customer.name
             row_cells[1].text = f"{customer.email or 'N/A'}\n{customer.phone or 'N/A'}"
             row_cells[2].text = customer.address or 'N/A'
-            row_cells[3].text = f"Limit: {customer.credit_limit:,.2f}\nBalance: {customer.get_balance():,.2f}"
+            row_cells[3].text = f"{customer.get_balance():,.2f}"
             for i, cell in enumerate(row_cells):
                 cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
                 for p in cell.paragraphs:

@@ -26,15 +26,15 @@ class CustomerForm(forms.ModelForm):
     
     class Meta:
         model = Customer
-        fields =['name', 'email', 'phone', 'address', 'tax_id', 'credit_limit']
+        fields =['name', 'email', 'phone', 'address', 'tax_id']
         widgets = {
-            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name or Company Name'}),
-            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'email@example.com'}),
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Full Name'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control', 'placeholder': 'Email Address'}),
             'phone': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Phone Number'}),
-            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Billing Address'}),
-            'tax_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Tax Identification Number'}),
-            'credit_limit': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
+            'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 2, 'placeholder': 'Physical Address'}),
+            'tax_id': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'TIN / Tax ID'}),
         }
+
 
 
 class CustomerPaymentForm(forms.ModelForm):

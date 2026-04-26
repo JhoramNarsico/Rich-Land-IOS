@@ -162,7 +162,7 @@ class CustomerAdmin(admin.ModelAdmin):
     Displays customer information, allows searching, and shows current balance.
     Includes inlines for Customer Payments and Hydraulic Sows.
     """
-    list_display = ('name', 'customer_id', 'email', 'phone', 'credit_limit', 'current_balance_display')
+    list_display = ('name', 'customer_id', 'email', 'phone', 'current_balance_display')
     search_fields = ('name', 'customer_id', 'email', 'phone', 'tax_id')
     inlines =[CustomerPaymentInline, HydraulicSowInline]
     readonly_fields = ('created_at', 'updated_at')

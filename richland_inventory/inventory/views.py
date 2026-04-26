@@ -1283,9 +1283,7 @@ class CustomerDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView
         # Add payment form and financial summary to context
         context['payment_form'] = CustomerPaymentForm(customer=customer)
         current_balance = self.object.get_balance()
-        credit_limit = self.object.credit_limit
         context['current_balance'] = current_balance
-        context['available_credit'] = credit_limit - current_balance
         
         # SOW Filtering
         sow_q = self.request.GET.get('sow_q', '')
@@ -1664,7 +1662,7 @@ def pos_dashboard(request):
     products_json = json.dumps(products_list, cls=DjangoJSONEncoder)
     
     # Customers
-    customers = Customer.objects.values('id', 'name', 'credit_limit')
+    customers = Customer.objects.values('id', 'name')
     customers_json = json.dumps(list(customers), cls=DjangoJSONEncoder)
     
     # Get pre-selected customer from URL
@@ -1763,11 +1761,6 @@ def pos_checkout(request):
         if payment_method == 'CREDIT':
             if not customer:
                  return JsonResponse({'status': 'error', 'message': 'Customer required for credit sales'}, status=400)
-            
-            current_balance = customer.get_balance()
-
-            if customer.credit_limit > 0 and (current_balance + total_calculated_cost) > customer.credit_limit:
-                 return JsonResponse({'status': 'error', 'message': f'Credit limit exceeded. Available: {customer.credit_limit - current_balance}'}, status=400)
             
             # If credit, immediate payment is 0
             amount_paid = Decimal('0') 

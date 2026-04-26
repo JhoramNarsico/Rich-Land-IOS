@@ -62,14 +62,14 @@ class Command(BaseCommand):
         # Ensure Walk-in Customer exists first
         walk_in_customer, _ = Customer.objects.get_or_create(
             name="Walk-in Customer", 
-            defaults={'address': 'Store Counter', 'credit_limit': 0}
+            defaults={'address': 'Store Counter'}
         )
 
         customers_data = [
-            {'name': 'John Doe Garage', 'email': 'johndoe@example.com', 'phone': '0917-111-2222', 'address': '123 Main St, QC', 'credit_limit': 100000},
-            {'name': 'Maria\'s Auto Repair', 'email': 'maria@repair.com', 'phone': '0918-333-4444', 'address': '456 Service Rd, Pasig', 'credit_limit': 50000},
-            {'name': 'Speedy Transport', 'email': 'ops@speedy.ph', 'phone': '0919-555-6666', 'address': 'Cagayan de Oro City', 'credit_limit': 200000},
-            {'name': 'Lito Mechanic', 'email': 'lito@yahoo.com', 'phone': '0920-888-9999', 'address': 'Lapasan, CDO', 'credit_limit': 10000},
+            {'name': 'John Doe Garage', 'email': 'johndoe@example.com', 'phone': '0917-111-2222', 'address': '123 Main St, QC'},
+            {'name': 'Maria\'s Auto Repair', 'email': 'maria@repair.com', 'phone': '0918-333-4444', 'address': '456 Service Rd, Pasig'},
+            {'name': 'Speedy Transport', 'email': 'ops@speedy.ph', 'phone': '0919-555-6666', 'address': 'Cagayan de Oro City'},
+            {'name': 'Lito Mechanic', 'email': 'lito@yahoo.com', 'phone': '0920-888-9999', 'address': 'Lapasan, CDO'},
         ]
 
         # Generate 20 additional random customers
@@ -79,7 +79,6 @@ class Command(BaseCommand):
                 'email': f'customer{i}@example.com',
                 'phone': f'09{random.randint(10, 99)}-{random.randint(100, 999)}-{random.randint(1000, 9999)}',
                 'address': f'{random.randint(1, 999)} Street Name, City',
-                'credit_limit': random.choice([10000, 20000, 50000, 100000])
             })
 
         customer_objs = []
