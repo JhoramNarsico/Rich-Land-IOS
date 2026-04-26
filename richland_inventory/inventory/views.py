@@ -2782,7 +2782,7 @@ class TransactionListView(LoginRequiredMixin, PermissionRequiredMixin, ListView)
             if form.cleaned_data.get('user'): queryset = queryset.filter(user=form.cleaned_data['user'])
             if form.cleaned_data.get('start_date'): queryset = queryset.filter(timestamp__date__gte=form.cleaned_data['start_date'])
             if form.cleaned_data.get('end_date'): queryset = queryset.filter(timestamp__date__lte=form.cleaned_data['end_date'])
-        return queryset.order_by('-timestamp')
+        return queryset.order_by('-timestamp', '-id')
         
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

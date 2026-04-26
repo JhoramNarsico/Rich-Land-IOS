@@ -328,7 +328,7 @@ class StockTransaction(models.Model):
     )
 
     class Meta:
-        ordering = ['-timestamp']
+        ordering = ['-timestamp', '-id']
         permissions =[
             ("can_adjust_stock", "Can adjust stock quantities"),
             ("can_view_history", "Can view product edit history"),
