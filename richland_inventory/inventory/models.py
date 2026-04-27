@@ -50,6 +50,7 @@ class Customer(models.Model):
     phone = models.CharField(max_length=20, blank=True)
     address = models.TextField(blank=True)
     tax_id = models.CharField(max_length=50, blank=True, help_text="TIN or Tax ID")
+    credit_limit = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'), help_text="Maximum allowed credit balance.")
     
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
