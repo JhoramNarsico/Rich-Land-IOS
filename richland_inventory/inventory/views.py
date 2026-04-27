@@ -725,7 +725,8 @@ class ExpenseListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
         
         data = self.request.GET.copy()
         
-        if not self.request.GET:
+        # Default to current month/year if not specified in the URL
+        if not data.get('month') and not data.get('year'):
             data['month'] = default_month
             data['year'] = default_year
         
