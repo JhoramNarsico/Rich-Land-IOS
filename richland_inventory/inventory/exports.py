@@ -735,3 +735,58 @@ def generate_supplier_deliveries_export(supplier, purchase_orders, format_type, 
         return HttpResponse("Error Generating PDF", status=500)
     
     return None
+
+def generate_inventory_snapshot_export(products, total_value, total_items, request):
+    filename = f"Inventory_Snapshot_{timezone.now().strftime('%Y%m%d')}"
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Inventory Snapshot"
+    ws.page_margins = PageMargins(left=0.25, right=0.25, top=0.5, bottom=0.5)
+
+    title_font = Font(name='Arial', size=18, bold=True, color="2C3E50")
+    subtitle_font = Font(name='Arial', size=14, bold=True, color="2799A5")
+    info_font = Font(name='Arial', size=10, color="7F8C8D")
+    header_font = Font(name='Arial', size=10, bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="2C3E50", end_color="2C3E50", fill_type="solid")
+    total_font = Font(name='Arial', size=11, bold=True)
+    thin_border = Border(left=Side(style='thin', color="BDC3C7"), right=Side(style='thin', color="BDC3C7"), top=Side(style='thin', color="BDC3C7"), bottom=Side(style='thin', color="BDC3C7"))
+    data_alignment = Alignment(vertical='center', wrap_text=True)
+    data_alignment_right = Alignment(horizontal='right', vertical='center')
+
+    add_excel_logo(ws)
+    ws.merge_cells('B1:D1'); ws['B1'] = "Rich Land Auto Supply"; ws['B1'].font = title_font; ws['B1'].alignment = Alignment(horizontal='left', vertical='center')
+    ws.merge_cells('E1:G1'); ws['E1'] = "CURRENT STOCK SNAPSHOT"; ws['E1'].font = subtitle_font; ws['E1'].alignment = Alignment(horizontal='right', vertical='center')
+    ws.merge_cells('E2:G2'); ws['E2'] = f"Total Items: {total_items}"; ws['E2'].font = info_font; ws['E2'].alignment = Alignment(horizontal='right')
+    ws.merge_cells('E3:G3'); ws['E3'] = f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"; ws['E3'].font = info_font; ws['E3'].alignment = Alignment(horizontal='right')
+    ws.row_dimensions[1].height = 30
+
+    current_row = 5
+    headers =['SKU', 'Product Name', 'Category', 'Quantity', 'Unit Price', 'Total Value', 'Status']
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=current_row, column=col_num); cell.value = header; cell.font = header_font
+        cell.fill = header_fill; cell.alignment = Alignment(horizontal='center', vertical='center'); cell.border = thin_border
+    
+    for product in products:
+        current_row += 1
+        ws.cell(row=current_row, column=1, value=product.sku).alignment = data_alignment
+        ws.cell(row=current_row, column=2, value=product.name).alignment = data_alignment
+        ws.cell(row=current_row, column=3, value=product.category.name if product.category else '-').alignment = data_alignment
+        c4 = ws.cell(row=current_row, column=4, value=product.quantity); c4.number_format = '#,##0'; c4.alignment = data_alignment_right
+        c5 = ws.cell(row=current_row, column=5, value=product.price); c5.number_format = '#,##0.00'; c5.alignment = data_alignment_right
+        c6 = ws.cell(row=current_row, column=6, value=product.total_value); c6.number_format = '#,##0.00'; c6.alignment = data_alignment_right; c6.font = Font(bold=True)
+        ws.cell(row=current_row, column=7, value=product.status).alignment = data_alignment
+
+        for col in range(1, 8): ws.cell(row=current_row, column=col).border = thin_border
+
+    current_row += 2
+    total_label_cell = ws[f'F{current_row}']; total_label_cell.value = "Inventory Valuation:"; total_label_cell.font = total_font; total_label_cell.alignment = Alignment(horizontal='right')
+    total_value_cell = ws[f'G{current_row}']; total_value_cell.value = total_value; total_value_cell.font = total_font; total_value_cell.number_format = '"PHP" #,##0.00'
+
+    ws.column_dimensions['A'].width = 15; ws.column_dimensions['B'].width = 45; ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 12; ws.column_dimensions['E'].width = 15; ws.column_dimensions['F'].width = 15; ws.column_dimensions['G'].width = 15
+
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+    wb.save(response)
+    return response

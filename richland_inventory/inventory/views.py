@@ -2025,6 +2025,15 @@ class POSReceiptDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailVi
         context['items'] = items
         return context
 
+def get_product_price(request, product_id):
+    """API endpoint for admin JS to fetch product price."""
+    from django.http import JsonResponse
+    try:
+        product = Product.objects.get(pk=product_id)
+        return JsonResponse({'price': str(product.price)})
+    except Product.DoesNotExist:
+        return JsonResponse({'error': 'Not found'}, status=404)
+
 # --- ANALYTICS & REPORTS ---
 
 @method_decorator(xframe_options_exempt, name='dispatch')
@@ -2042,9 +2051,22 @@ class ReportingView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
         export_type = request.GET.get('export')
         if export_type == 'inventory_pdf':
             return self.export_inventory_pdf(request)
+        elif export_type == 'inventory_excel':
+            return self.export_inventory_excel(request)
         elif export_type == 'transaction_pdf':
             return self.export_transactions_pdf(request)
         return super().get(request, *args, **kwargs)
+
+    def export_inventory_excel(self, request):
+        from .exports import generate_inventory_snapshot_export
+        products = Product.objects.select_related('category').all().annotate(
+            total_value=ExpressionWrapper(F('quantity') * F('price'), output_field=DecimalField())
+        ).order_by('name')
+
+        total_inventory_value = products.aggregate(total=Sum('total_value'))['total'] or Decimal('0.00')
+        total_items = products.aggregate(total=Sum('quantity'))['total'] or 0
+
+        return generate_inventory_snapshot_export(products, total_inventory_value, total_items, request)
 
     def export_inventory_pdf(self, request):
         products = Product.objects.select_related('category').all().annotate(

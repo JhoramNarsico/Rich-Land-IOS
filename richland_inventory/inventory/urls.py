@@ -20,7 +20,8 @@ urlpatterns =[
     # ==========================================
     path('', views.ProductListView.as_view(), name='product_list'),
     path('product/create/', views.ProductCreateView.as_view(), name='product_create'),
-    path('product/<slug:slug>/', views.ProductDetailView.as_view(), name='product_detail'),
+    path('products/<int:product_id>/price/', views.get_product_price, name='get_product_price'),
+    path('products/<slug:slug>/', views.ProductDetailView.as_view(), name='product_detail'),
     path('product/<slug:slug>/update/', views.ProductUpdateView.as_view(), name='product_update'),
     path('product/<slug:slug>/delete/', views.ProductDeleteView.as_view(), name='product_delete'),
     

@@ -356,6 +356,13 @@ class PurchaseOrderAdmin(admin.ModelAdmin):
     date_hierarchy = 'order_date'
     autocomplete_fields = ('supplier',)
 
+    class Media:
+        js = (
+            'admin/js/vendor/jquery/jquery.min.js',
+            'admin/js/jquery.init.js',
+            'inventory/js/purchase_order_admin.js',
+        )
+
     def save_model(self, request, obj, form, change):
         if change:
             # Detect if status was changed to RECEIVED in the admin

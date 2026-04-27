@@ -41,10 +41,12 @@
                         <br><br>
                         <strong>Best for:</strong> End-of-month inventory counts and external data analysis.
                     </p>
-
                     <div class="d-grid gap-2 d-sm-flex justify-content-center">
-                        <a href="{% url 'inventory:reporting' %}?export=inventory_pdf" class="btn btn-primary flex-grow-1 fw-bold py-2">
-                            <i class="fas fa-file-pdf me-2"></i>Download PDF
+                        <a href="{% url 'inventory:reporting' %}?export=inventory_pdf" class="btn btn-outline-danger flex-grow-1 fw-bold py-2">
+                            <i class="fas fa-file-pdf me-2"></i>PDF Report
+                        </a>
+                        <a href="{% url 'inventory:reporting' %}?export=inventory_excel" class="btn btn-success flex-grow-1 fw-bold py-2">
+                            <i class="fas fa-file-excel me-2"></i>Excel Export
                         </a>
                     </div>
                 </div>
@@ -120,7 +122,7 @@
                         <i class="fas fa-file-pdf text-danger fa-lg me-3"></i>
                         <h5 class="modal-title fw-bold text-dark">Report Preview</h5>
                     </div>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close" data-bs-modal="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body p-0 bg-light d-flex justify-content-center align-items-center">
                     <div id="loadingSpinner" class="text-center text-muted">
@@ -146,7 +148,8 @@
 <script>
     // 1. Loading State Helper
     function hideSpinner() {
-        document.getElementById('loadingSpinner').style.display = 'none';
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'none';
     }
 
     // 2. Preview Logic
@@ -162,16 +165,21 @@
         const downloadUrl = baseUrl;
         
         // Reset Spinner
-        document.getElementById('loadingSpinner').style.display = 'block';
+        const spinner = document.getElementById('loadingSpinner');
+        if (spinner) spinner.style.display = 'block';
         
         // Load Iframe
         const viewer = document.getElementById('pdfViewer');
-        viewer.src = previewUrl;
+        if (viewer) viewer.src = previewUrl;
         
-        document.getElementById('downloadBtn').href = downloadUrl;
+        const downloadBtn = document.getElementById('downloadBtn');
+        if (downloadBtn) downloadBtn.href = downloadUrl;
         
-        const modal = new bootstrap.Modal(document.getElementById('pdfPreviewModal'));
-        modal.show();
+        const modalEl = document.getElementById('pdfPreviewModal');
+        if (modalEl) {
+            const modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
     }
 
     // 3. Date Helper Logic
@@ -185,24 +193,33 @@
         }
         const today = new Date();
 
-        document.getElementById('set-today').addEventListener('click', () => {
-            const str = formatDate(today);
-            startDateInput.value = str;
-            endDateInput.value = str;
-        });
+        const btnToday = document.getElementById('set-today');
+        if (btnToday) {
+            btnToday.addEventListener('click', () => {
+                const str = formatDate(today);
+                if (startDateInput) startDateInput.value = str;
+                if (endDateInput) endDateInput.value = str;
+            });
+        }
 
-        document.getElementById('set-week').addEventListener('click', () => {
-            const first = new Date(today);
-            first.setDate(today.getDate() - today.getDay() + 1); // Monday
-            startDateInput.value = formatDate(first);
-            endDateInput.value = formatDate(today);
-        });
+        const btnWeek = document.getElementById('set-week');
+        if (btnWeek) {
+            btnWeek.addEventListener('click', () => {
+                const first = new Date(today);
+                first.setDate(today.getDate() - today.getDay() + 1); // Monday
+                if (startDateInput) startDateInput.value = formatDate(first);
+                if (endDateInput) endDateInput.value = formatDate(today);
+            });
+        }
         
-        document.getElementById('set-month').addEventListener('click', () => {
-            const first = new Date(today.getFullYear(), today.getMonth(), 1);
-            startDateInput.value = formatDate(first);
-            endDateInput.value = formatDate(today);
-        });
+        const btnMonth = document.getElementById('set-month');
+        if (btnMonth) {
+            btnMonth.addEventListener('click', () => {
+                const first = new Date(today.getFullYear(), today.getMonth(), 1);
+                if (startDateInput) startDateInput.value = formatDate(first);
+                if (endDateInput) endDateInput.value = formatDate(today);
+            });
+        }
     });
 </script>
 {% endblock %}
