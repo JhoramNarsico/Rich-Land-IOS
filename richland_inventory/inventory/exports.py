@@ -1,3 +1,5 @@
+# --- START OF FILE exports.py ---
+
 import io
 import os
 from decimal import Decimal
@@ -18,7 +20,7 @@ from docx import Document
 from docx.shared import Inches, Pt, RGBColor
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.enum.section import WD_ORIENT
-from docx.enum.table import WD_ALIGN_VERTICAL
+from docx.enum.table import WD_ALIGN_VERTICAL, WD_TABLE_ALIGNMENT
 from docx.oxml.ns import nsdecls
 from docx.oxml import parse_xml
 
@@ -38,10 +40,11 @@ def apply_standard_word_style(document, landscape=False):
         section.page_width = Inches(8.5)
         section.page_height = Inches(11)
 
-    section.left_margin = Inches(0.25)
-    section.right_margin = Inches(0.25)
-    section.top_margin = Inches(0.25)
-    section.bottom_margin = Inches(0.25)
+    # Increased margins to 0.5 to prevent edge cut-offs on different printers
+    section.left_margin = Inches(0.5)
+    section.right_margin = Inches(0.5)
+    section.top_margin = Inches(0.5)
+    section.bottom_margin = Inches(0.5)
 
 
 def set_cell_background(cell, color_hex):
@@ -58,9 +61,10 @@ def add_excel_logo(ws):
         img.height = 60
         ws.add_image(img, 'A1')
 
-def create_header(document, title, subtitle_lines=[], width_inches=8.0):
+def create_header(document, title, subtitle_lines=[], width_inches=7.2):
     """Creates a professional header with Company Name and Report Details."""
     table = document.add_table(rows=1, cols=2)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
     table.autofit = False
     table.allow_autofit = False
     table.columns[0].width = Inches(width_inches / 2)
@@ -218,14 +222,18 @@ def generate_sow_history_export(customer, sows, format_type, request):
         create_header(document, "HYDRAULIC SOW HISTORY",[
             f"Customer: {customer.name}",
             f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
-        ], width_inches=10.0)
+        ], width_inches=9.6)
 
         table = document.add_table(rows=1, cols=8)
         table.style = 'Table Grid'
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
         table.autofit = False 
+        table.allow_autofit = False
         
-        widths =[Inches(1.0), Inches(1.0), Inches(1.5), Inches(2.0), Inches(2.0), Inches(0.8), Inches(1.0), Inches(0.7)]
-        for i, width in enumerate(widths): table.columns[i].width = width
+        # Total width: 9.6 inches (Landscape, fits cleanly inside 0.5" margins)
+        widths =[Inches(1.0), Inches(1.0), Inches(1.5), Inches(1.8), Inches(1.8), Inches(0.8), Inches(1.0), Inches(0.7)]
+        for i, width in enumerate(widths): 
+            table.columns[i].width = width
 
         headers =['Job ID', 'Date', 'Application', 'Hose Details', 'Fittings', 'Cost', 'Notes', 'By']
         style_table_header(table.rows[0], headers)
@@ -335,12 +343,16 @@ def generate_expense_report(expenses, format_type, request):
         create_header(document, "EXPENSE REPORT",[
             f"Total: PHP {total_expenses:,.2f}",
             f"Generated: {timezone.now().strftime('%b %d, %Y')}"
-        ], width_inches=7.5) 
+        ], width_inches=7.2) 
 
         table = document.add_table(rows=1, cols=5, style='Table Grid')
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
         table.autofit = False
-        table.columns[0].width = Inches(1.0)  # Date
-        table.columns[1].width = Inches(1.5)  # Cat.
+        table.allow_autofit = False
+        
+        # Total Width: 7.2" (Fits cleanly in 8.5" with 0.5" margins)
+        table.columns[0].width = Inches(0.9)  # Date
+        table.columns[1].width = Inches(1.3)  # Cat.
         table.columns[2].width = Inches(2.8)  # Desc.
         table.columns[3].width = Inches(1.0)  # By
         table.columns[4].width = Inches(1.2)  # Amt.
@@ -442,13 +454,17 @@ def generate_customer_list_export(customers, format_type, request):
         
         create_header(document, "CUSTOMER LIST",[
             f"Generated: {timezone.now().strftime('%B %d, %Y')}"
-        ], width_inches=7.5)
+        ], width_inches=7.2)
         
         table = document.add_table(rows=1, cols=4, style='Table Grid')
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
         table.autofit = False
-        table.columns[0].width = Inches(2.0) # Name
-        table.columns[1].width = Inches(2.0) # Contact
-        table.columns[2].width = Inches(2.3) # Address
+        table.allow_autofit = False
+        
+        # Total Width: 7.2"
+        table.columns[0].width = Inches(1.8) # Name
+        table.columns[1].width = Inches(1.8) # Contact
+        table.columns[2].width = Inches(2.4) # Address
         table.columns[3].width = Inches(1.2) # Balance
 
         style_table_header(table.rows[0],['Name', 'Contact', 'Address', 'Balance'])
@@ -556,11 +572,17 @@ def generate_customer_statement(customer, final_data, running_balance, format_ty
             f"Customer: {customer.name}",
             f"Address: {customer.address or 'N/A'}",
             f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
-        ], width_inches=7.5)
+        ], width_inches=7.2)
 
-        table = document.add_table(rows=1, cols=6); table.style = 'Table Grid'; table.autofit = False
-        widths =[Inches(1.0), Inches(1.2), Inches(2.2), Inches(1.0), Inches(1.0), Inches(1.1)]
-        for i, width in enumerate(widths): table.columns[i].width = width
+        table = document.add_table(rows=1, cols=6); table.style = 'Table Grid'
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        table.autofit = False
+        table.allow_autofit = False
+        
+        # Total Width: 7.2"
+        widths =[Inches(0.9), Inches(1.1), Inches(2.2), Inches(1.0), Inches(1.0), Inches(1.0)]
+        for i, width in enumerate(widths): 
+            table.columns[i].width = width
 
         headers =['Date', 'Reference', 'Description', 'Debit', 'Credit', 'Balance']
         style_table_header(table.rows[0], headers)
@@ -673,23 +695,36 @@ def generate_supplier_deliveries_export(supplier, purchase_orders, format_type, 
             f"Supplier: {supplier.name}",
             f"Contact: {supplier.contact_person or 'N/A'}",
             f"Generated: {timezone.now().strftime('%B %d, %Y %I:%M %p')}"
-        ], width_inches=7.5)
+        ], width_inches=7.2)
 
         for po in purchase_orders:
             # PO Header Table
-            po_table = document.add_table(rows=1, cols=3); po_table.style = 'Table Grid'; po_table.autofit = False
-            po_table.columns[0].width = Inches(3.5); po_table.columns[1].width = Inches(2.0); po_table.columns[2].width = Inches(2.0)
-            row = po_table.rows[0]
+            po_table = document.add_table(rows=1, cols=3); po_table.style = 'Table Grid'
+            po_table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            po_table.autofit = False
+            po_table.allow_autofit = False
             
+            # Total width: 7.2"
+            po_table.columns[0].width = Inches(3.2)
+            po_table.columns[1].width = Inches(2.0)
+            po_table.columns[2].width = Inches(2.0)
+            
+            row = po_table.rows[0]
             c1 = row.cells[0]; p = c1.paragraphs[0]; run = p.add_run(f"PO # {po.order_id}"); run.bold = True; run.font.name = 'Arial'; run.font.color.rgb = RGBColor(0x2C, 0x3E, 0x50); run.font.size = Pt(10); set_cell_background(c1, "ECF0F1")
             c2 = row.cells[1]; p = c2.paragraphs[0]; run = p.add_run(f"Date: {po.order_date.strftime('%Y-%m-%d')}"); run.font.name = 'Arial'; run.font.size = Pt(9); set_cell_background(c2, "ECF0F1")
             c3 = row.cells[2]; p = c3.paragraphs[0]; p.alignment = WD_ALIGN_PARAGRAPH.RIGHT; run = p.add_run(f"Status: {po.get_status_display()}"); run.font.name = 'Arial'; run.bold = True; run.font.size = Pt(9); set_cell_background(c3, "ECF0F1")
             for cell in row.cells: cell.vertical_alignment = WD_ALIGN_VERTICAL.CENTER
 
             # Items Table
-            table = document.add_table(rows=1, cols=5, style='Table Grid'); table.autofit = False
-            widths =[Inches(1.2), Inches(3.0), Inches(0.8), Inches(1.2), Inches(1.3)]
-            for i, width in enumerate(widths): table.columns[i].width = width
+            table = document.add_table(rows=1, cols=5, style='Table Grid')
+            table.alignment = WD_TABLE_ALIGNMENT.CENTER
+            table.autofit = False
+            table.allow_autofit = False
+            
+            # Total width: 7.0"
+            widths =[Inches(1.0), Inches(2.8), Inches(0.7), Inches(1.2), Inches(1.3)]
+            for i, width in enumerate(widths): 
+                table.columns[i].width = width
             
             headers =['SKU', 'Product Name', 'Qty', 'Unit Price', 'Total']
             style_table_header(table.rows[0], headers)

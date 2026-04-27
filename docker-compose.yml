@@ -11,7 +11,8 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "${DB_PORT_EXTERNAL:-3307}:3306"
+      # Changed the default external port fallback from 3307 to 3308
+      - "${DB_PORT_EXTERNAL:-3308}:3306" 
 
   web:
     build: .
