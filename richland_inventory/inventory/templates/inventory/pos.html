@@ -420,14 +420,24 @@
         if (newPrice !== null) {
             const parsed = parseFloat(newPrice);
             if (!isNaN(parsed) && parsed >= 0) {
-                item.price = parsed;
-
-                // If price was lowered, ask for a reason.
+                // If price was lowered, ask for a mandatory reason.
                 if (parsed < item.original_price) {
-                    const reason = prompt("Reason for price reduction (optional):", "");
-                    item.override_reason = reason || "Not provided"; // Store reason in cart item
+                    let reason = "";
+                    while (!reason || reason.trim() === "") {
+                        reason = prompt("Reason for price reduction (REQUIRED):", "");
+                        if (reason === null) {
+                            alert("Price reduction requires a reason. Price adjustment cancelled.");
+                            return; 
+                        }
+                        if (reason.trim() === "") {
+                            alert("Reason cannot be empty.");
+                        }
+                    }
+                    item.price = parsed;
+                    item.override_reason = reason.trim();
                 } else {
-                    delete item.override_reason; // Remove reason if price is not lower
+                    item.price = parsed;
+                    delete item.override_reason; // Remove reason if price is not lower than original
                 }
 
                 renderCart();

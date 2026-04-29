@@ -350,7 +350,7 @@ class PriceOverrideLog(models.Model):
     salesman = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
     original_price = models.DecimalField(max_digits=10, decimal_places=2)
     override_price = models.DecimalField(max_digits=10, decimal_places=2)
-    reason = models.CharField(max_length=255, blank=True, null=True, help_text="Reason for the price change.")
+    reason = models.CharField(max_length=255, default='Not provided', help_text="Reason for the price change.")
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:

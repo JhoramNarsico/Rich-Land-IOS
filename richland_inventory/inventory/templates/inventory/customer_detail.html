@@ -127,12 +127,12 @@
             <!-- SUB-NAVIGATION TABS -->
             <ul class="nav nav-tabs mb-3" id="customerTab" role="tablist">
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link active fw-bold text-dark" id="ledger-tab" data-bs-toggle="tab" data-bs-target="#ledger-pane" type="button" role="tab" aria-controls="ledger-pane" aria-selected="true">
+                    <button class="nav-link {% if active_tab == 'ledger' %}active{% endif %} fw-bold text-dark" id="ledger-tab" data-bs-toggle="tab" data-bs-target="#ledger-pane" type="button" role="tab" aria-controls="ledger-pane" aria-selected="{% if active_tab == 'ledger' %}true{% else %}false{% endif %}">
                         <i class="fas fa-history me-2 text-secondary"></i>Transaction Ledger
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link fw-bold text-dark" id="sow-tab" data-bs-toggle="tab" data-bs-target="#sow-pane" type="button" role="tab" aria-controls="sow-pane" aria-selected="false">
+                    <button class="nav-link {% if active_tab == 'sow' %}active{% endif %} fw-bold text-dark" id="sow-tab" data-bs-toggle="tab" data-bs-target="#sow-pane" type="button" role="tab" aria-controls="sow-pane" aria-selected="{% if active_tab == 'sow' %}true{% else %}false{% endif %}">
                         <i class="fas fa-tools me-2 text-secondary"></i>Hydraulic Jobs
                     </button>
                 </li>
@@ -140,13 +140,13 @@
 
             <div class="tab-content" id="customerTabContent">
                 <!-- LEDGER TAB PANE -->
-                <div class="tab-pane fade show active" id="ledger-pane" role="tabpanel" aria-labelledby="ledger-tab">
+                <div class="tab-pane fade {% if active_tab == 'ledger' %}show active{% endif %}" id="ledger-pane" role="tabpanel" aria-labelledby="ledger-tab">
                     <!-- LEDGER CARD -->
                     <div class="card border-0 shadow-sm mb-4">
                         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 fw-bold text-dark">Financial Transactions</h6>
                             <div class="d-flex gap-2 align-items-center">
-                                <form method="get" class="input-group input-group-sm" style="width: 250px;">
+                                <form method="get" action="{% url 'inventory:customer_detail' pk=customer.pk %}" class="input-group input-group-sm" style="width: 250px;">
                                     {% if sow_q %}<input type="hidden" name="sow_q" value="{{ sow_q }}">{% endif %}
                                     <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
                                     <input type="text" name="ledger_q" id="ledgerSearch" class="form-control border-start-0 ps-0" placeholder="Search ref, description..." value="{{ ledger_q|default:'' }}">
@@ -262,13 +262,13 @@
                 </div>
 
                 <!-- SOW TAB PANE -->
-                <div class="tab-pane fade" id="sow-pane" role="tabpanel" aria-labelledby="sow-tab">
+                <div class="tab-pane fade {% if active_tab == 'sow' %}show active{% endif %}" id="sow-pane" role="tabpanel" aria-labelledby="sow-tab">
                     <!-- SOW HISTORY -->
                     <div class="card border-0 shadow-sm">
                         <div class="card-header bg-white border-bottom py-3 d-flex justify-content-between align-items-center">
                             <h6 class="mb-0 fw-bold text-dark">Hydraulic Scope of Work (SOW)</h6>
                     <div class="d-flex gap-2 align-items-center">
-                        <form method="get" class="input-group input-group-sm" style="width: 250px;">
+                        <form method="get" action="{% url 'inventory:customer_detail' pk=customer.pk %}" class="input-group input-group-sm" style="width: 250px;">
                             {% if ledger_q %}<input type="hidden" name="ledger_q" value="{{ ledger_q }}">{% endif %}
                             <span class="input-group-text bg-light border-end-0"><i class="fas fa-search text-muted"></i></span>
                             <input type="text" name="sow_q" id="sowSearch" class="form-control border-start-0 ps-0" placeholder="Search jobs..." value="{{ sow_q|default:'' }}">

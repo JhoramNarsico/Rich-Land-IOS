@@ -108,6 +108,12 @@ def refund_search(request):
 def refund_process(request):
     if request.method == 'POST':
         rid = request.POST.get('receipt_id')
+        reason = request.POST.get('refund_reason', '').strip()
+        
+        if not reason:
+            messages.error(request, "A reason for the refund is required.")
+            return redirect('inventory:refund_portal')
+
         sale = POSSale.objects.get(receipt_id=rid)
         
         # Check if the receipt belongs to a Hydraulic SOW job
@@ -115,6 +121,7 @@ def refund_process(request):
             messages.error(request, "Refunds for Hydraulic Service Jobs are not permitted.")
             return redirect('inventory:refund_portal')
         
+        refund_count = 0
         for key, qty in request.POST.items():
             if key.startswith('qty_') and int(qty) > 0:
                 item_id = key.split('_')[1]
@@ -129,12 +136,17 @@ def refund_process(request):
                     quantity=int(qty),
                     selling_price=item.selling_price,
                     user=request.user,
-                    notes=f"Bulk Refund for {rid}"
+                    notes=f"Refund for {rid}. Reason: {reason}"
                 )
                 item.product.quantity += int(qty)
                 item.product.save()
-                
-        messages.success(request, f"Refunds processed for receipt {rid}.")
+                refund_count += 1
+        
+        if refund_count == 0:
+            messages.warning(request, "No items were selected for refund.")
+        else:
+            messages.success(request, f"Refunds processed for receipt {rid}.")
+        
         return redirect('inventory:refund_portal')
     return redirect('inventory:refund_portal')
 

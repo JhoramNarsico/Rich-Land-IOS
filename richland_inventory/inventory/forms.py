@@ -173,12 +173,13 @@ class RefundForm(forms.ModelForm):
         fields = ['pos_sale', 'quantity', 'notes']
         widgets = {
             'quantity': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
-            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for return (e.g. Defective, Wrong Item)'}),
+            'notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Reason for return (REQUIRED: e.g. Defective, Wrong Item)'}),
         }
 
     def __init__(self, *args, **kwargs):
         product = kwargs.pop('product', None)
         super().__init__(*args, **kwargs)
+        self.fields['notes'].required = True
         if product:
             self.fields['pos_sale'].queryset = POSSale.objects.filter(
                 items__product=product,
