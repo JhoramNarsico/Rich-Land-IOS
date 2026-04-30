@@ -20,10 +20,29 @@ class Command(BaseCommand):
         self.clear_data()
 
         # 1. Get or Create Admin User for logs
-        user = User.objects.first()
-        if not user:
-            user = User.objects.create_superuser('admin', 'admin@example.com', 'password123')
+        admin_user = User.objects.filter(username='admin').first()
+        if not admin_user:
+            admin_user = User.objects.create_superuser('admin', 'admin@example.com', 'password123')
             self.stdout.write("Created superuser: admin / password123")
+        
+        from django.contrib.auth.models import Group
+        manager_group, _ = Group.objects.get_or_create(name='Manager')
+        salesman_group, _ = Group.objects.get_or_create(name='Salesman')
+
+        manager = User.objects.create_user('manager1', 'manager@example.com', 'password123')
+        manager.groups.add(manager_group)
+        
+        salesman1 = User.objects.create_user('salesman1', 'salesman1@example.com', 'password123')
+        salesman1.groups.add(salesman_group)
+        
+        salesman2 = User.objects.create_user('salesman2', 'salesman2@example.com', 'password123')
+        salesman2.groups.add(salesman_group)
+        
+        all_users = [admin_user, manager, salesman1, salesman2]
+        staff_users = [admin_user, manager]
+        pos_users = [salesman1, salesman2, manager]
+
+        self.stdout.write(f"Created users: manager1, salesman1, salesman2")
 
         # 2. Create Product Categories
         categories = [
@@ -175,7 +194,7 @@ class Command(BaseCommand):
                     transaction_type='IN',
                     transaction_reason='PO',
                     quantity=qty,
-                    user=user,
+                    user=random.choice(staff_users),
                     notes=f"Received from PO {po.order_id}",
                     timestamp=po.order_date
                 )
@@ -191,6 +210,24 @@ class Command(BaseCommand):
                 status=random.choice(['PENDING', 'COMPLETED']),
                 order_date=timezone.now() - timedelta(days=random.randint(1, 10))
             )
+
+        # 6.5. Generate Product Edit History (Audit Trail)
+        self.stdout.write("Generating product edit history...")
+        for prod in random.sample(prod_objs, k=10):
+            # Simulate 2-4 edits per selected product
+            for _ in range(random.randint(2, 4)):
+                editor = random.choice(staff_users)
+                # Randomly change price or reorder level
+                if random.random() < 0.5:
+                    prod.price = prod.price * Decimal(random.uniform(0.95, 1.05))
+                else:
+                    prod.reorder_level = random.randint(5, 20)
+                
+                # django-simple-history records changes on save
+                # We can't easily backdate history records without more complex logic,
+                # but we can at least show different users made changes.
+                prod._history_user = editor 
+                prod.save()
 
         # 7. Create Expenses
         self.stdout.write("Creating expense categories and expenses...")
@@ -209,7 +246,7 @@ class Command(BaseCommand):
                 description=f"Sample {random.choice(exp_cat_objs).name} expense",
                 amount=Decimal(random.uniform(500, 15000)).quantize(Decimal('0.01')),
                 expense_date=exp_date,
-                recorded_by=user
+                recorded_by=random.choice(staff_users)
             )
 
         # 8. Create Hydraulic SOWs (Mixed: Quotes, Paid, Charged)
@@ -222,8 +259,9 @@ class Command(BaseCommand):
             is_walkin = random.random() < 0.3
             cust = walk_in_customer if is_walkin else random.choice(customer_objs)
             
+            sow_user = random.choice(pos_users)
             sow = HydraulicSow.objects.create(
-                customer=cust, created_by=user, hose_type=f"Type {random.choice(['A', 'B', 'C'])}",
+                customer=cust, created_by=sow_user, hose_type=f"Type {random.choice(['A', 'B', 'C'])}",
                 diameter=f"1/{random.randint(2,8)}", application=f"Excavator Arm {i+1}",
                 cost=Decimal(random.uniform(1500, 8000)).quantize(Decimal('0.01'))
             )
@@ -243,7 +281,7 @@ class Command(BaseCommand):
                 POSSale.objects.create(
                     receipt_id=sow.sow_id, 
                     customer=cust, 
-                    cashier=user, 
+                    cashier=sow_user, 
                     payment_method=pm, 
                     total_amount=sow.cost, 
                     amount_paid=paid,
@@ -286,9 +324,10 @@ class Command(BaseCommand):
                 else:
                     payment_method = random.choice(['CASH', 'CREDIT', 'CREDIT', 'CARD', 'GCASH', 'BANK'])
 
+                sale_user = random.choice(pos_users)
                 sale_record = POSSale.objects.create(
                     receipt_id=f"REC-{uuid.uuid4().hex[:8].upper()}",
-                    cashier=user, customer=customer, payment_method=payment_method, timestamp=txn_date
+                    cashier=sale_user, customer=customer, payment_method=payment_method, timestamp=txn_date
                 )
                 
                 total_cost = Decimal('0')
@@ -304,7 +343,7 @@ class Command(BaseCommand):
                             transaction_type='IN',
                             transaction_reason='CORRECTION',
                             quantity=restock_qty,
-                            user=user,
+                            user=random.choice(staff_users),
                             notes="Automatic restock during seeding"
                         )
                         st_restock.timestamp = txn_date
@@ -317,11 +356,23 @@ class Command(BaseCommand):
                     # Simulate custom price override (5% chance)
                     selling_price = product.price
                     if random.random() < 0.05:
-                        selling_price = product.price * Decimal('0.9') # 10% discount
+                        original_price = product.price
+                        selling_price = original_price * Decimal('0.9') # 10% discount
+                        sale_record.has_price_override = True
+                        PriceOverrideLog.objects.create(
+                            pos_sale=sale_record,
+                            product=product,
+                            salesman=sale_user,
+                            original_price=original_price,
+                            override_price=selling_price,
+                            reason=random.choice(["Valued Customer", "Bulk Discount", "Store Promotion", "Damaged Packaging"]),
+                            timestamp=txn_date
+                        )
+
                     StockTransaction.objects.create(
                         product=product, pos_sale=sale_record, transaction_type='OUT',
                         transaction_reason='SALE', quantity=qty, selling_price=selling_price,
-                        user=user, notes=f"POS Sale: {sale_record.receipt_id}",
+                        user=sale_user, notes=f"POS Sale: {sale_record.receipt_id}",
                         timestamp=txn_date
                     )
                     
@@ -353,7 +404,7 @@ class Command(BaseCommand):
                 
                 CustomerPayment.objects.create(
                     customer=sale.customer, sale_paid=sale, amount=payment_amount.quantize(Decimal('0.01')),
-                    payment_date=payment_date, recorded_by=user, notes="Seed data payment"
+                    payment_date=payment_date, recorded_by=random.choice(pos_users), notes="Seed data payment"
                 )
 
         # 11. Generate Returns and Damages
@@ -368,7 +419,7 @@ class Command(BaseCommand):
                         product=item_to_return.product, transaction_type='IN', transaction_reason='RETURN',
                         quantity=1, selling_price=item_to_return.selling_price,
                         pos_sale=sale_to_return, # Link return to original sale
-                        user=user,
+                        user=random.choice(pos_users),
                         notes=f"Return for {sale_to_return.receipt_id}"
                     )
                     st.timestamp = return_date
@@ -387,8 +438,8 @@ class Command(BaseCommand):
                         damage_date = timezone.now() - timedelta(days=random.randint(1,180))
                         st = StockTransaction.objects.create(
                             product=product_to_damage, transaction_type='OUT', transaction_reason='DAMAGE',
-                            quantity=1, user=user,
-                            notes="Damaged during handling (seed)"
+                            quantity=1, user=random.choice(staff_users),
+                            notes=random.choice(["Damaged during handling (seed)", "Expired item", "Lost in transit"])
                         )
                         st.timestamp = damage_date
                         st.save()
@@ -412,3 +463,7 @@ class Command(BaseCommand):
                     self.stdout.write(f"  - Cleared {model.__name__}")
             except Exception as e:
                 self.stdout.write(self.style.ERROR(f"Error clearing {model.__name__}: {e}"))
+
+        # Clear non-superuser users
+        User.objects.filter(is_superuser=False).delete()
+        self.stdout.write("  - Cleared non-superuser users")
